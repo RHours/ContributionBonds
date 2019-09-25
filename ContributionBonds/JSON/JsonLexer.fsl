@@ -1,0 +1,42 @@
+﻿{
+open System
+open System.Text
+
+//open JsonPi.Parser
+
+// Opens methods related to fslex.exe
+open Internal.Utilities.Text.Lexing
+
+let lexeme = LexBuffer<_>.LexemeString
+
+}
+
+let hex_digit = ['0'-'9' 'A'-'F' 'a'-'f']
+let digit = ['0'-'9']
+let onenine = ['1'-'9']
+let integer = digit | onenine digit+ | '-' digit | '-' onenine digit+
+let fraction = '.' digit+
+let sign = '+' | '-'
+let exponent = ('e' | 'E') sign? digit+
+let escape = ['\"' '\\' 'b' 'f' 'n' 'r' 't'] | 'u' hex_digit hex_digit hex_digit hex_digit
+let characters = ['\u0020' '\u0021'] | ['\u0023'-'\u005b' ] | ['\u005d'-'\u01ff']
+let string = '\"' characters '\"'
+let ws = [' ' '\r' '\n' '\t' ]
+
+rule json = parse
+| string					{ Parser.STRING( lexeme lexbuf ) }
+| integer					{ Parser.INTEGER( lexeme lexbuf ) }
+| fraction					{ Parser.FRACTION( lexeme lexbuf ) }
+| exponent					{ Parser.EXPONENT( lexeme lexbuf ) }
+| '{'						{ Parser.LBRACE }
+| '}'						{ Parser.RBRACE }
+| '['						{ Parser.LBRACKET }
+| ']'						{ Parser.RBRACKET }
+| ','						{ Parser.COMMA }
+| ':'						{ Parser.COLON }
+| "true"					{ Parser.TRUE }
+| "false"					{ Parser.FALSE }
+| "null"					{ Parser.NULL }
+| ws						{ json lexbuf }
+| eof                       { Parser.EOF }
+| _                         { failwith "error 1" }

@@ -1,0 +1,64 @@
+﻿%{
+open System
+
+open Internal.Utilities.Text.Parsing
+
+%}
+
+// The start token becomes a parser function in the compiled code:
+%start json
+
+// Regular tokens
+%token <string> STRING INTEGER FRACTION EXPONENT
+%token TRUE FALSE NULL LBRACE RBRACE LBRACKET RBRACKET COMMA COLON
+%token EOF
+
+// This is the type of the data produced by a successful reduction of the 'start'
+%type < int > json
+
+%% 
+
+json:
+	| element       { 1 }
+
+value:
+	| object		{ 1 }
+	| array			{ 1 }
+	| string		{ 1 }
+	| number		{ 1 }
+	| TRUE			{ 1 }
+	| FALSE			{ 1 }
+	| NULL			{ 1 }
+ 
+ object:
+	| LBRACE RBRACE				{ 1 }
+	| LBRACE members RBRACE		{ 1 }
+
+members:
+	| omember                    { 1 }
+	| omember COMMA members		{ 1 }
+
+omember:
+	| string COLON element		{ 1 }
+
+array:
+	| LBRACKET RBRACKET				{ 1 }
+	| LBRACKET elements RBRACKET	{ 1 }
+
+elements:
+    | element                   { 1 }
+    | element COMMA elements    { 1 }
+
+element:
+    | value                     { 1 }
+
+string:
+    | STRING                    { 1 }
+
+number:
+    | INTEGER FRACTION EXPONENT { 1 }
+    | INTEGER FRACTION          { 1 }
+    | INTEGER EXPONENT          { 1 }
+    | INTEGER                   { 1 }
+
+
