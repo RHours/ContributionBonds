@@ -38,7 +38,7 @@ type nonTerminalId =
     | NONTERM_value
     | NONTERM_object
     | NONTERM_members
-    | NONTERM_omember
+    | NONTERM_jsonmember
     | NONTERM_array
     | NONTERM_elements
     | NONTERM_element
@@ -55,4 +55,4 @@ val prodIdxToNonTerminal: int -> nonTerminalId
 
 /// This function gets the name of a token as a string
 val token_to_string: token -> string
-val json : (Internal.Utilities.Text.Lexing.LexBuffer<'cty> -> token) -> Internal.Utilities.Text.Lexing.LexBuffer<'cty> -> ( int ) 
+val json : (Internal.Utilities.Text.Lexing.LexBuffer<'cty> -> token) -> Internal.Utilities.Text.Lexing.LexBuffer<'cty> -> ( obj ) 

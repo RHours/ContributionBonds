@@ -14,51 +14,49 @@ open Internal.Utilities.Text.Parsing
 %token EOF
 
 // This is the type of the data produced by a successful reduction of the 'start'
-%type < int > json
+%type < obj > json
 
 %% 
 
 json:
-	| element       { 1 }
+	| element       { $1 }
 
 value:
-	| object		{ 1 }
-	| array			{ 1 }
-	| string		{ 1 }
-	| number		{ 1 }
-	| TRUE			{ 1 }
-	| FALSE			{ 1 }
-	| NULL			{ 1 }
+	| object		{ null }
+	| array			{ null }
+	| string		{ $1 }
+	| number		{ $1 }
+	| TRUE			{ true :> obj }
+	| FALSE			{ false :> obj }
+	| NULL			{ null }
  
  object:
-	| LBRACE RBRACE				{ 1 }
-	| LBRACE members RBRACE		{ 1 }
+	| LBRACE RBRACE				{ null }
+	| LBRACE members RBRACE		{ null }
 
 members:
-	| omember                    { 1 }
-	| omember COMMA members		{ 1 }
+	| jsonmember                    { null }
+	| jsonmember COMMA members		{ null }
 
-omember:
-	| string COLON element		{ 1 }
+jsonmember:
+	| string COLON element		{ null }
 
 array:
-	| LBRACKET RBRACKET				{ 1 }
-	| LBRACKET elements RBRACKET	{ 1 }
+	| LBRACKET RBRACKET				{ null }
+	| LBRACKET elements RBRACKET	{ null }
 
 elements:
-    | element                   { 1 }
-    | element COMMA elements    { 1 }
+    | element                   { null }
+    | element COMMA elements    { null }
 
 element:
-    | value                     { 1 }
+    | value                     { $1 }
 
 string:
-    | STRING                    { 1 }
+    | STRING                    { $1 :> obj }
 
 number:
-    | INTEGER FRACTION EXPONENT { 1 }
-    | INTEGER FRACTION          { 1 }
-    | INTEGER EXPONENT          { 1 }
-    | INTEGER                   { 1 }
-
-
+    | INTEGER FRACTION EXPONENT { System.Convert.ToDouble($1 + $2 + $3) :> obj }
+    | INTEGER FRACTION          { System.Convert.ToDouble($1 + $2) :> obj }
+    | INTEGER EXPONENT          { System.Convert.ToDouble($1 + $2) :> obj }
+    | INTEGER                   { System.Convert.ToInt32($1) :> obj }

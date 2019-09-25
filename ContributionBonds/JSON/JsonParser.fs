@@ -52,7 +52,7 @@ type nonTerminalId =
     | NONTERM_value
     | NONTERM_object
     | NONTERM_members
-    | NONTERM_omember
+    | NONTERM_jsonmember
     | NONTERM_array
     | NONTERM_elements
     | NONTERM_element
@@ -114,7 +114,7 @@ let prodIdxToNonTerminal (prodIdx:int) =
     | 10 -> NONTERM_object 
     | 11 -> NONTERM_members 
     | 12 -> NONTERM_members 
-    | 13 -> NONTERM_omember 
+    | 13 -> NONTERM_jsonmember 
     | 14 -> NONTERM_array 
     | 15 -> NONTERM_array 
     | 16 -> NONTERM_elements 
@@ -178,7 +178,7 @@ let _fsyacc_immediateActions = [|65535us; 49152us; 16385us; 16386us; 16387us; 16
 let _fsyacc_reductions ()  =    [| 
 # 179 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
-            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data :  int )) in
+            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data :  obj )) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
@@ -192,10 +192,10 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 22 "JSON\JsonParser.fsy"
-                                        1 
+                                        _1 
                    )
 # 22 "JSON\JsonParser.fsy"
-                 :  int ));
+                 :  obj ));
 # 199 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'object)) in
@@ -203,7 +203,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 25 "JSON\JsonParser.fsy"
-                                  1 
+                                  null 
                    )
 # 25 "JSON\JsonParser.fsy"
                  : 'value));
@@ -214,7 +214,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 26 "JSON\JsonParser.fsy"
-                                  1 
+                                  null 
                    )
 # 26 "JSON\JsonParser.fsy"
                  : 'value));
@@ -225,7 +225,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 27 "JSON\JsonParser.fsy"
-                                  1 
+                                  _1 
                    )
 # 27 "JSON\JsonParser.fsy"
                  : 'value));
@@ -236,7 +236,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 28 "JSON\JsonParser.fsy"
-                                  1 
+                                  _1 
                    )
 # 28 "JSON\JsonParser.fsy"
                  : 'value));
@@ -246,7 +246,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 29 "JSON\JsonParser.fsy"
-                                 1 
+                                 true :> obj 
                    )
 # 29 "JSON\JsonParser.fsy"
                  : 'value));
@@ -256,7 +256,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 30 "JSON\JsonParser.fsy"
-                                  1 
+                                  false :> obj 
                    )
 # 30 "JSON\JsonParser.fsy"
                  : 'value));
@@ -266,7 +266,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 31 "JSON\JsonParser.fsy"
-                                 1 
+                                 null 
                    )
 # 31 "JSON\JsonParser.fsy"
                  : 'value));
@@ -276,7 +276,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 34 "JSON\JsonParser.fsy"
-                                           1 
+                                           null 
                    )
 # 34 "JSON\JsonParser.fsy"
                  : 'object));
@@ -287,30 +287,30 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 35 "JSON\JsonParser.fsy"
-                                                 1 
+                                                 null 
                    )
 # 35 "JSON\JsonParser.fsy"
                  : 'object));
 # 294 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
-            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'omember)) in
+            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'jsonmember)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
 # 38 "JSON\JsonParser.fsy"
-                                                     1 
+                                                        null 
                    )
 # 38 "JSON\JsonParser.fsy"
                  : 'members));
 # 305 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
-            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'omember)) in
+            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'jsonmember)) in
             let _3 = (let data = parseState.GetInput(3) in (Microsoft.FSharp.Core.Operators.unbox data : 'members)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
 # 39 "JSON\JsonParser.fsy"
-                                                 1 
+                                                    null 
                    )
 # 39 "JSON\JsonParser.fsy"
                  : 'members));
@@ -322,17 +322,17 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 42 "JSON\JsonParser.fsy"
-                                                1 
+                                                null 
                    )
 # 42 "JSON\JsonParser.fsy"
-                 : 'omember));
+                 : 'jsonmember));
 # 329 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
 # 45 "JSON\JsonParser.fsy"
-                                               1 
+                                               null 
                    )
 # 45 "JSON\JsonParser.fsy"
                  : 'array));
@@ -343,7 +343,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 46 "JSON\JsonParser.fsy"
-                                                     1 
+                                                     null 
                    )
 # 46 "JSON\JsonParser.fsy"
                  : 'array));
@@ -354,7 +354,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 49 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       null 
                    )
 # 49 "JSON\JsonParser.fsy"
                  : 'elements));
@@ -366,7 +366,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 50 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       null 
                    )
 # 50 "JSON\JsonParser.fsy"
                  : 'elements));
@@ -377,7 +377,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 53 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       _1 
                    )
 # 53 "JSON\JsonParser.fsy"
                  : 'element));
@@ -388,7 +388,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 56 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       _1 :> obj 
                    )
 # 56 "JSON\JsonParser.fsy"
                  : 'string));
@@ -401,7 +401,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 59 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       System.Convert.ToDouble(_1 + _2 + _3) :> obj 
                    )
 # 59 "JSON\JsonParser.fsy"
                  : 'number));
@@ -413,7 +413,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 60 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       System.Convert.ToDouble(_1 + _2) :> obj 
                    )
 # 60 "JSON\JsonParser.fsy"
                  : 'number));
@@ -425,7 +425,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 61 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       System.Convert.ToDouble(_1 + _2) :> obj 
                    )
 # 61 "JSON\JsonParser.fsy"
                  : 'number));
@@ -436,7 +436,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 62 "JSON\JsonParser.fsy"
-                                                       1 
+                                                       System.Convert.ToInt32(_1) :> obj 
                    )
 # 62 "JSON\JsonParser.fsy"
                  : 'number));
@@ -463,5 +463,5 @@ let tables () : Internal.Utilities.Text.Parsing.Tables<_> =
     numTerminals = 17;
     productionToNonTerminalTable = _fsyacc_productionToNonTerminalTable  }
 let engine lexer lexbuf startState = (tables ()).Interpret(lexer, lexbuf, startState)
-let json lexer lexbuf :  int  =
+let json lexer lexbuf :  obj  =
     Microsoft.FSharp.Core.Operators.unbox ((tables ()).Interpret(lexer, lexbuf, 0))
