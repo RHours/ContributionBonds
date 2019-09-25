@@ -9,8 +9,31 @@ open System
 
 open Internal.Utilities.Text.Parsing
 
+type JsonNumber =
+    | JsonInteger   of int
+    | JsonFloat     of float
 
-# 13 "JSON\JsonParser.fs"
+type JsonValue = 
+    | JsonObject    of Map<string, JsonValue>
+    | JsonArray     of JsonValue array
+    | JsonString    of string
+    | JsonNumber    of JsonNumber
+    | JsonBool      of bool
+    | JsonNull
+
+let JsonMembersToMap (members: (string * JsonValue) list) : Map<string, JsonValue> =
+    let empty = Map.empty<string, JsonValue>
+    let add k v acc = 
+        if Map.containsKey k acc then
+            failwith "duplicate key in object"
+        else
+            Map.add k v acc
+        
+    List.fold (fun acc (k,v) -> add k v acc) empty members
+
+
+
+# 36 "JSON\JsonParser.fs"
 // This type is the type of tokens accepted by the parser
 type token = 
   | EOF
@@ -176,223 +199,223 @@ let _fsyacc_reductionSymbolCounts = [|1us; 1us; 1us; 1us; 1us; 1us; 1us; 1us; 1u
 let _fsyacc_productionToNonTerminalTable = [|0us; 1us; 2us; 2us; 2us; 2us; 2us; 2us; 2us; 3us; 3us; 4us; 4us; 5us; 6us; 6us; 7us; 7us; 8us; 9us; 10us; 10us; 10us; 10us; |]
 let _fsyacc_immediateActions = [|65535us; 49152us; 16385us; 16386us; 16387us; 16388us; 16389us; 16390us; 16391us; 16392us; 65535us; 16393us; 65535us; 16394us; 65535us; 65535us; 16396us; 65535us; 65535us; 16397us; 65535us; 16398us; 65535us; 16399us; 65535us; 65535us; 16401us; 16402us; 16403us; 65535us; 65535us; 16404us; 16406us; |]
 let _fsyacc_reductions ()  =    [| 
-# 179 "JSON\JsonParser.fs"
+# 202 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
-            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data :  obj )) in
+            let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data :  JsonValue )) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
                       raise (Internal.Utilities.Text.Parsing.Accept(Microsoft.FSharp.Core.Operators.box _1))
                    )
                  : '_startjson));
-# 188 "JSON\JsonParser.fs"
+# 211 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'element)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 22 "JSON\JsonParser.fsy"
+# 45 "JSON\JsonParser.fsy"
                                         _1 
                    )
-# 22 "JSON\JsonParser.fsy"
-                 :  obj ));
-# 199 "JSON\JsonParser.fs"
+# 45 "JSON\JsonParser.fsy"
+                 :  JsonValue ));
+# 222 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'object)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 25 "JSON\JsonParser.fsy"
-                                  null 
+# 48 "JSON\JsonParser.fsy"
+                                  JsonValue.JsonObject(_1) 
                    )
-# 25 "JSON\JsonParser.fsy"
+# 48 "JSON\JsonParser.fsy"
                  : 'value));
-# 210 "JSON\JsonParser.fs"
+# 233 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'array)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 26 "JSON\JsonParser.fsy"
-                                  null 
+# 49 "JSON\JsonParser.fsy"
+                                  JsonValue.JsonArray(_1) 
                    )
-# 26 "JSON\JsonParser.fsy"
+# 49 "JSON\JsonParser.fsy"
                  : 'value));
-# 221 "JSON\JsonParser.fs"
+# 244 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'string)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 27 "JSON\JsonParser.fsy"
-                                  _1 
+# 50 "JSON\JsonParser.fsy"
+                                  JsonValue.JsonString(_1) 
                    )
-# 27 "JSON\JsonParser.fsy"
+# 50 "JSON\JsonParser.fsy"
                  : 'value));
-# 232 "JSON\JsonParser.fs"
+# 255 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'number)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 28 "JSON\JsonParser.fsy"
-                                  _1 
+# 51 "JSON\JsonParser.fsy"
+                                  JsonValue.JsonNumber(_1) 
                    )
-# 28 "JSON\JsonParser.fsy"
+# 51 "JSON\JsonParser.fsy"
                  : 'value));
-# 243 "JSON\JsonParser.fs"
+# 266 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 29 "JSON\JsonParser.fsy"
-                                 true :> obj 
+# 52 "JSON\JsonParser.fsy"
+                                 JsonValue.JsonBool(true) 
                    )
-# 29 "JSON\JsonParser.fsy"
+# 52 "JSON\JsonParser.fsy"
                  : 'value));
-# 253 "JSON\JsonParser.fs"
+# 276 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 30 "JSON\JsonParser.fsy"
-                                  false :> obj 
+# 53 "JSON\JsonParser.fsy"
+                                  JsonValue.JsonBool(false) 
                    )
-# 30 "JSON\JsonParser.fsy"
+# 53 "JSON\JsonParser.fsy"
                  : 'value));
-# 263 "JSON\JsonParser.fs"
+# 286 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 31 "JSON\JsonParser.fsy"
-                                 null 
+# 54 "JSON\JsonParser.fsy"
+                                 JsonValue.JsonNull 
                    )
-# 31 "JSON\JsonParser.fsy"
+# 54 "JSON\JsonParser.fsy"
                  : 'value));
-# 273 "JSON\JsonParser.fs"
+# 296 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 34 "JSON\JsonParser.fsy"
-                                           null 
+# 57 "JSON\JsonParser.fsy"
+                                           (Map.empty<string, JsonValue>) 
                    )
-# 34 "JSON\JsonParser.fsy"
+# 57 "JSON\JsonParser.fsy"
                  : 'object));
-# 283 "JSON\JsonParser.fs"
+# 306 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _2 = (let data = parseState.GetInput(2) in (Microsoft.FSharp.Core.Operators.unbox data : 'members)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 35 "JSON\JsonParser.fsy"
-                                                 null 
+# 58 "JSON\JsonParser.fsy"
+                                                 (JsonMembersToMap _2) 
                    )
-# 35 "JSON\JsonParser.fsy"
+# 58 "JSON\JsonParser.fsy"
                  : 'object));
-# 294 "JSON\JsonParser.fs"
+# 317 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'jsonmember)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 38 "JSON\JsonParser.fsy"
-                                                        null 
+# 61 "JSON\JsonParser.fsy"
+                                                        [ _1 ]  
                    )
-# 38 "JSON\JsonParser.fsy"
+# 61 "JSON\JsonParser.fsy"
                  : 'members));
-# 305 "JSON\JsonParser.fs"
+# 328 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'jsonmember)) in
             let _3 = (let data = parseState.GetInput(3) in (Microsoft.FSharp.Core.Operators.unbox data : 'members)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 39 "JSON\JsonParser.fsy"
-                                                    null 
+# 62 "JSON\JsonParser.fsy"
+                                                    _1 :: _3 
                    )
-# 39 "JSON\JsonParser.fsy"
+# 62 "JSON\JsonParser.fsy"
                  : 'members));
-# 317 "JSON\JsonParser.fs"
+# 340 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'string)) in
             let _3 = (let data = parseState.GetInput(3) in (Microsoft.FSharp.Core.Operators.unbox data : 'element)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 42 "JSON\JsonParser.fsy"
-                                                null 
+# 65 "JSON\JsonParser.fsy"
+                                                (_1, _3) 
                    )
-# 42 "JSON\JsonParser.fsy"
+# 65 "JSON\JsonParser.fsy"
                  : 'jsonmember));
-# 329 "JSON\JsonParser.fs"
+# 352 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 45 "JSON\JsonParser.fsy"
-                                               null 
+# 68 "JSON\JsonParser.fsy"
+                                               [| |] 
                    )
-# 45 "JSON\JsonParser.fsy"
+# 68 "JSON\JsonParser.fsy"
                  : 'array));
-# 339 "JSON\JsonParser.fs"
+# 362 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _2 = (let data = parseState.GetInput(2) in (Microsoft.FSharp.Core.Operators.unbox data : 'elements)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 46 "JSON\JsonParser.fsy"
-                                                     null 
+# 69 "JSON\JsonParser.fsy"
+                                                     (Array.ofList (_2)) 
                    )
-# 46 "JSON\JsonParser.fsy"
+# 69 "JSON\JsonParser.fsy"
                  : 'array));
-# 350 "JSON\JsonParser.fs"
+# 373 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'element)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 49 "JSON\JsonParser.fsy"
-                                                       null 
+# 72 "JSON\JsonParser.fsy"
+                                                       [ _1 ] 
                    )
-# 49 "JSON\JsonParser.fsy"
+# 72 "JSON\JsonParser.fsy"
                  : 'elements));
-# 361 "JSON\JsonParser.fs"
+# 384 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'element)) in
             let _3 = (let data = parseState.GetInput(3) in (Microsoft.FSharp.Core.Operators.unbox data : 'elements)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 50 "JSON\JsonParser.fsy"
-                                                       null 
+# 73 "JSON\JsonParser.fsy"
+                                                       _1 :: _3 
                    )
-# 50 "JSON\JsonParser.fsy"
+# 73 "JSON\JsonParser.fsy"
                  : 'elements));
-# 373 "JSON\JsonParser.fs"
+# 396 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : 'value)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 53 "JSON\JsonParser.fsy"
+# 76 "JSON\JsonParser.fsy"
                                                        _1 
                    )
-# 53 "JSON\JsonParser.fsy"
+# 76 "JSON\JsonParser.fsy"
                  : 'element));
-# 384 "JSON\JsonParser.fs"
+# 407 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 56 "JSON\JsonParser.fsy"
-                                                       _1 :> obj 
+# 79 "JSON\JsonParser.fsy"
+                                                       _1 
                    )
-# 56 "JSON\JsonParser.fsy"
+# 79 "JSON\JsonParser.fsy"
                  : 'string));
-# 395 "JSON\JsonParser.fs"
+# 418 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             let _2 = (let data = parseState.GetInput(2) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
@@ -400,48 +423,48 @@ let _fsyacc_reductions ()  =    [|
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 59 "JSON\JsonParser.fsy"
-                                                       System.Convert.ToDouble(_1 + _2 + _3) :> obj 
+# 82 "JSON\JsonParser.fsy"
+                                                       JsonNumber.JsonFloat(System.Convert.ToDouble(_1 + _2 + _3)) 
                    )
-# 59 "JSON\JsonParser.fsy"
+# 82 "JSON\JsonParser.fsy"
                  : 'number));
-# 408 "JSON\JsonParser.fs"
+# 431 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             let _2 = (let data = parseState.GetInput(2) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 60 "JSON\JsonParser.fsy"
-                                                       System.Convert.ToDouble(_1 + _2) :> obj 
+# 83 "JSON\JsonParser.fsy"
+                                                       JsonNumber.JsonFloat(System.Convert.ToDouble(_1 + _2)) 
                    )
-# 60 "JSON\JsonParser.fsy"
+# 83 "JSON\JsonParser.fsy"
                  : 'number));
-# 420 "JSON\JsonParser.fs"
+# 443 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             let _2 = (let data = parseState.GetInput(2) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 61 "JSON\JsonParser.fsy"
-                                                       System.Convert.ToDouble(_1 + _2) :> obj 
+# 84 "JSON\JsonParser.fsy"
+                                                       JsonNumber.JsonFloat(System.Convert.ToDouble(_1 + _2)) 
                    )
-# 61 "JSON\JsonParser.fsy"
+# 84 "JSON\JsonParser.fsy"
                  : 'number));
-# 432 "JSON\JsonParser.fs"
+# 455 "JSON\JsonParser.fs"
         (fun (parseState : Internal.Utilities.Text.Parsing.IParseState) ->
             let _1 = (let data = parseState.GetInput(1) in (Microsoft.FSharp.Core.Operators.unbox data : string)) in
             Microsoft.FSharp.Core.Operators.box
                 (
                    (
-# 62 "JSON\JsonParser.fsy"
-                                                       System.Convert.ToInt32(_1) :> obj 
+# 85 "JSON\JsonParser.fsy"
+                                                       JsonNumber.JsonInteger(System.Convert.ToInt32(_1)) 
                    )
-# 62 "JSON\JsonParser.fsy"
+# 85 "JSON\JsonParser.fsy"
                  : 'number));
 |]
-# 444 "JSON\JsonParser.fs"
+# 467 "JSON\JsonParser.fs"
 let tables () : Internal.Utilities.Text.Parsing.Tables<_> = 
   { reductions= _fsyacc_reductions ();
     endOfInputTag = _fsyacc_endOfInputTag;
@@ -463,5 +486,5 @@ let tables () : Internal.Utilities.Text.Parsing.Tables<_> =
     numTerminals = 17;
     productionToNonTerminalTable = _fsyacc_productionToNonTerminalTable  }
 let engine lexer lexbuf startState = (tables ()).Interpret(lexer, lexbuf, startState)
-let json lexer lexbuf :  obj  =
+let json lexer lexbuf :  JsonValue  =
     Microsoft.FSharp.Core.Operators.unbox ((tables ()).Interpret(lexer, lexbuf, 0))

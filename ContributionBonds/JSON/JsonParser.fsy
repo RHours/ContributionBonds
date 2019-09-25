@@ -3,6 +3,29 @@ open System
 
 open Internal.Utilities.Text.Parsing
 
+type JsonNumber =
+    | JsonInteger   of int
+    | JsonFloat     of float
+
+type JsonValue = 
+    | JsonObject    of Map<string, JsonValue>
+    | JsonArray     of JsonValue array
+    | JsonString    of string
+    | JsonNumber    of JsonNumber
+    | JsonBool      of bool
+    | JsonNull
+
+let JsonMembersToMap (members: (string * JsonValue) list) : Map<string, JsonValue> =
+    let empty = Map.empty<string, JsonValue>
+    let add k v acc = 
+        if Map.containsKey k acc then
+            failwith "duplicate key in object"
+        else
+            Map.add k v acc
+        
+    List.fold (fun acc (k,v) -> add k v acc) empty members
+
+
 %}
 
 // The start token becomes a parser function in the compiled code:
@@ -14,7 +37,7 @@ open Internal.Utilities.Text.Parsing
 %token EOF
 
 // This is the type of the data produced by a successful reduction of the 'start'
-%type < obj > json
+%type < JsonValue > json
 
 %% 
 
@@ -22,41 +45,41 @@ json:
 	| element       { $1 }
 
 value:
-	| object		{ null }
-	| array			{ null }
-	| string		{ $1 }
-	| number		{ $1 }
-	| TRUE			{ true :> obj }
-	| FALSE			{ false :> obj }
-	| NULL			{ null }
+	| object		{ JsonValue.JsonObject($1) }
+	| array			{ JsonValue.JsonArray($1) }
+	| string		{ JsonValue.JsonString($1) }
+	| number		{ JsonValue.JsonNumber($1) }
+	| TRUE			{ JsonValue.JsonBool(true) }
+	| FALSE			{ JsonValue.JsonBool(false) }
+	| NULL			{ JsonValue.JsonNull }
  
  object:
-	| LBRACE RBRACE				{ null }
-	| LBRACE members RBRACE		{ null }
+	| LBRACE RBRACE				{ (Map.empty<string, JsonValue>) }
+	| LBRACE members RBRACE		{ (JsonMembersToMap $2) }
 
 members:
-	| jsonmember                    { null }
-	| jsonmember COMMA members		{ null }
+	| jsonmember                    { [ $1 ]  }
+	| jsonmember COMMA members		{ $1 :: $3 }
 
 jsonmember:
-	| string COLON element		{ null }
+	| string COLON element		{ ($1, $3) }
 
 array:
-	| LBRACKET RBRACKET				{ null }
-	| LBRACKET elements RBRACKET	{ null }
+	| LBRACKET RBRACKET				{ [| |] }
+	| LBRACKET elements RBRACKET	{ (Array.ofList ($2)) }
 
 elements:
-    | element                   { null }
-    | element COMMA elements    { null }
+    | element                   { [ $1 ] }
+    | element COMMA elements    { $1 :: $3 }
 
 element:
     | value                     { $1 }
 
 string:
-    | STRING                    { $1 :> obj }
+    | STRING                    { $1 }
 
 number:
-    | INTEGER FRACTION EXPONENT { System.Convert.ToDouble($1 + $2 + $3) :> obj }
-    | INTEGER FRACTION          { System.Convert.ToDouble($1 + $2) :> obj }
-    | INTEGER EXPONENT          { System.Convert.ToDouble($1 + $2) :> obj }
-    | INTEGER                   { System.Convert.ToInt32($1) :> obj }
+    | INTEGER FRACTION EXPONENT { JsonNumber.JsonFloat(System.Convert.ToDouble($1 + $2 + $3)) }
+    | INTEGER FRACTION          { JsonNumber.JsonFloat(System.Convert.ToDouble($1 + $2)) }
+    | INTEGER EXPONENT          { JsonNumber.JsonFloat(System.Convert.ToDouble($1 + $2)) }
+    | INTEGER                   { JsonNumber.JsonInteger(System.Convert.ToInt32($1)) }

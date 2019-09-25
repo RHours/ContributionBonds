@@ -83,44 +83,11 @@ let (|CommandSignBond|_|) (argv:string[]) =
     else
         None
 
-let JsonHexToInt (jc:char) : int =
-    if '0' <= jc && jc <= '9' then
-        int(jc) - int('0')
-    elif 'a' <= jc && jc <= 'f' then
-        (int(jc) - int('a')) + 10
-    elif 'A' <= jc && jc <= 'F' then
-        (int(jc) - int('A')) + 10
-    else
-        failwith "error"
-
-let JsonStringToString (js:string) : string =
-    let sb = System.Text.StringBuilder()
-    let rec scan mode i =
-        match js.[i] with
-        | _ when i >= js.Length -> ()
-        | '\"' when mode = 0 -> scan 1 (i+1)
-        | '\"' when mode = 1 -> ()
-        | '\\' when mode = 1 -> scan 2 (i+1)
-        | '\"' when mode = 2 -> sb.Append('\"') |> ignore; scan 1 (i+1)
-        | '\\' when mode = 2 -> sb.Append('\\') |> ignore; scan 1 (i+1)
-        | '/' when mode = 2 -> sb.Append('/') |> ignore; scan 1 (i+1)
-        | '\b' when mode = 2 -> sb.Append('\b') |> ignore; scan 1 (i+1)
-        | '\f' when mode = 2 -> sb.Append('\f') |> ignore; scan 1 (i+1)
-        | '\n' when mode = 2 -> sb.Append('\n') |> ignore; scan 1 (i+1)
-        | '\r' when mode = 2 -> sb.Append('\r') |> ignore; scan 1 (i+1)
-        | '\t' when mode = 2 -> sb.Append('\t') |> ignore; scan 1 (i+1)
-        | 'u' when mode = 2 -> 
-            let hexescape : int = (0x1000 * int(js.[i+1])) + (0x100 * int(js.[i+2])) + (0x10 * int(js.[i+3])) + int(js.[i+4])
-            sb.Append(System.Convert.ToChar(hexescape)) |> ignore
-            scan 0 (i+5)
-        | c -> sb.Append(c) |> ignore; scan 1 (i+1)
-
-    scan 0 0
-    sb.ToString()
 
 [<EntryPoint>]
 let main argv = 
-    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("\"glen \\u0042raun\"")
+
+    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
 
     let parseresult = Parser.json Lexer.json lexbuf
     //let parseresult = System.Convert.ToString("\u0042") :> obj
