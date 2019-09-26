@@ -21,7 +21,7 @@
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
     <OutputPath>bin\$(Configuration)\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;INTERNALIZED_FSLEXYACC_RUNTIME</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;INTERNALIZED_FSLEXYACC_RUNTIME;__DEBUG</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
@@ -49,6 +49,14 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="FsLexYacc\Lexing.fs" />
     <Compile Include="FsLexYacc\Parsing.fs" />
+    <FsYacc Include="DID\DidParser.fsy">
+      <OtherFlags>--module Did.Parser --internal --lexlib Internal.Utilities.Text.Lexing --parslib Internal.Utilities.Text.Parsing -o DID\DidParser.fs</OtherFlags>
+    </FsYacc>
+    <FsLex Include="DID\DidLexer.fsl">
+      <OtherFlags>--module Did.Lexer --unicode --internal --lexlib Internal.Utilities.Text.Lexing -o DID\DidLexer.fs</OtherFlags>
+    </FsLex>
+    <Compile Include="DID\DidParser.fs" />
+    <Compile Include="DID\DidLexer.fs" />
     <FsYacc Include="JSON\JsonParser.fsy">
       <OtherFlags>--module Json.Parser --internal --lexlib Internal.Utilities.Text.Lexing --parslib Internal.Utilities.Text.Parsing -o JSON\JsonParser.fs</OtherFlags>
     </FsYacc>

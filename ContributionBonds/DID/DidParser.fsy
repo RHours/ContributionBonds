@@ -1,0 +1,66 @@
+﻿%{
+open System
+
+open Internal.Utilities.Text.Parsing
+
+type DecentralizedIdentifier =
+    {
+        MethodName: string;
+        MethodSpecificIds: string array
+    }
+
+
+%}
+
+// The start token becomes a parser function in the compiled code:
+%start did
+
+%token <char> LOWER_AZ UPPER_AZ DIGIT
+%token DID_COLON COLON PERIOD DASH UNDERSCORE
+%token EOF
+
+// This is the type of the data produced by a successful reduction of the 'start'
+%type < DecentralizedIdentifier > did
+
+
+%% 
+
+did:
+	| DID_COLON methodName COLON methodSpecificIds       { { MethodName = $2; MethodSpecificIds = Array.ofList $4; } }
+
+methodName:
+    | methodChars       { String(Array.ofList $1) }
+
+methodChars:
+    | methodChar        { [ $1 ] }
+    | methodChar methodChars       { $1 :: $2 }
+
+methodChar:
+    | LOWER_AZ          { $1 }
+    | DIGIT             { $1 }
+
+methodSpecificIds:
+    | methodSpecificId  { [ $1 ] }
+    | methodSpecificId COLON methodSpecificIds { $1 :: $3 }
+
+methodSpecificId:
+    |                   { "" }
+    | idChars           { String(Array.ofList $1) }
+
+idChars:
+    | idChar            { [ $1 ] }
+    | idChar idChars    { $1 :: $2 }
+
+idChar:
+    | alphaChar         { $1 }
+    | DIGIT             { $1 }
+    | PERIOD            { '.' }
+    | DASH              { '-' }
+    | UNDERSCORE        { '_' }
+
+alphaChar:
+    | LOWER_AZ          { $1 }
+    | UPPER_AZ          { $1 }
+
+
+    

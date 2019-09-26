@@ -83,13 +83,24 @@ let (|CommandSignBond|_|) (argv:string[]) =
     else
         None
 
+type DecentralizedIdentifier =
+    {
+        MethodName: string;
+        MethodSpecificIds: string array
+    }
 
 [<EntryPoint>]
 let main argv = 
+    Internal.Utilities.Text.Parsing.Flags.debug <- false
 
-    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
+     // let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
+    // "did:example:123456789abcdefghi"
+    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("did:example:::")
 
-    let parseresult = Parser.json Lexer.json lexbuf
+    //let parseresult = Parser.json Lexer.json lexbuf
+    let parseresult = Did.Parser.did Did.Lexer.did lexbuf
+
+    
     //let parseresult = System.Convert.ToString("\u0042") :> obj
     printfn "%A" parseresult
 

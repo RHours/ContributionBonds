@@ -1,0 +1,22 @@
+﻿{
+open System
+open System.Text
+
+// Opens methods related to fslex.exe
+open Internal.Utilities.Text.Lexing
+
+let lexeme = LexBuffer<_>.LexemeString
+
+}
+
+rule did = parse
+| "did:"                    { Parser.DID_COLON }
+| ':'						{ Parser.COLON }
+| ['a'-'z']                 { Parser.LOWER_AZ(lexbuf.LexemeChar 0) }
+| ['A'-'Z']                 { Parser.UPPER_AZ(lexbuf.LexemeChar 0) }
+| ['0'-'9']                 { Parser.DIGIT(lexbuf.LexemeChar 0) }
+| '.'                       { Parser.PERIOD }
+| '-'                       { Parser.DASH }
+| '_'                       { Parser.UNDERSCORE }
+| eof                       { Parser.EOF }
+| _                         { failwith "error 1" }

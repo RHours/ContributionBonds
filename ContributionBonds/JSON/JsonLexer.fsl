@@ -2,8 +2,6 @@
 open System
 open System.Text
 
-//open JsonPi.Parser
-
 // Opens methods related to fslex.exe
 open Internal.Utilities.Text.Lexing
 
