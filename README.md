@@ -6,6 +6,7 @@ Following is an example of a contribution bond in JSON format.
 
 ```javascript
 {
+    "@context": "https://github.com/RHours/ContributionBonds",
     "terms": "TERMS_HASH_STRING",
     "company": "COMPANY_IDENTIFIER",
     "contributor": "CONTRIBUTOR_IDENTIFIER",
@@ -69,5 +70,59 @@ A payment operation adds an element to the payments array of the bond.
 ## Voiding Operations
 A bond can be voided by adding a { "void-date": "VOID_DATE" } element to the payments array. All payments before the void date are valid but no future payments are required by the organization.
 
+
+# RHours DID Document Elements
+Element             | Description
+-------             | -----------
+@context            | "https://www.w3.org/2019/did/v1"
+id                  | The DID this document refers to.
+authentication      | An array of verification methods.
+
+
+## RHours DID Document Verification Method Elements
+Element             | Description
+-------             | -----------
+id                  | The ID of this verification method.
+type                | One of the linked data cryptographic suites at https://w3c-ccg.github.io/ld-cryptosuite-registry/
+controller          | The DID of the subject who controls the key.
+publicKeyPem        | The PEM of the public key, format is https://tools.ietf.org/html/rfc7468
+
+
+## Signature and Validation using RsaVerificationKey2018
+https://w3c-dvcg.github.io/ld-signatures/
+https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs1signatureformatter?view=netframework-4.8
+
+
+"proof": [{
+    "type": "RsaSignature2018",
+    "creator": "https://example.com/i/pat/keys/5",
+    "created": "2017-09-23T20:21:34Z",
+    "domain": "example.org",
+    "nonce": "2bbgh3dgjg2302d-d2b3gi423d42",
+    "proofValue": "eyJ0eXAiOiJK...gFWFOEjXk"
+  }, {
+    "type": "RsaSignature2018",
+    "creator": "https://example.com/i/kelly/keys/7f3j",
+    "created": "2017-09-23T20:24:12Z",
+    "domain": "example.org",
+    "nonce": "83jj4hd62j49gk38",
+    "proofValue": "eyiOiJJ0eXAK...EjXkgFWFO"
+  }]
+
+  ## Canonicalization of JSON data
+  It's possible for mutlitple JSON documents to have same data but different sequence of bytes. For example, adding extra whitespace to one document would change the sequence of bytes but still represent the same data. This causes a problem when cryptographically signing JSON documents. The signing occurs on bytes not the meaning of the data. 
+
+  To ensure that two documents which have the same meaningful data result in the same signature, a process called canonicalization is used to transform each document into a standardized form which are then signed.
+
+  Additionally, its convienient to embed the signature of a document within the document itself. However, this implies that the signature itself cannot be included within the bytes signed. You would need to know the signature to include it in the bytes of the signature.
+
+  Within the JSON-LD orbit of specifications, there is a specification for signing JSON-LD data. But, for the life of me, I can't make heads or tails of what the algoritm really is. Much of the JSON-LD work came from previous work on RDF so the canonicalization contains references to RDF which seem unaplicable to JSON. So, I've desgned my own scheme as below.
+
+  * The signature will operate over the bytes which represent a UTF-8 encoding of the text of a JSON document.
+  * All whitespace will be removed (which is not part of a string)
+  * String character escapes like \t, \r, \n, will be represented as their single character equivilent, e.g. \t will be the single tab character, 0x10. This is also true of hex escapes. \u0d25 will be represented as its single character. The one exception is the backslash character '\'. It must be escaped to two characters "\\" in the UTF-8 serialization.
+  * The lable names of object properties are sorted based on their unicode value. Duplicates are not allowed in JSON so there's no issue of picking between duplicates.
+  * The signing process will ignore a final object property called "proof". The "proof" label must be the last one in the root object. Only objects can be signed. There's no support for signature chains in this sceme but proof sets are supported.
+  * The signing process will update an existing "proof" label or create a new one. A "proof" property may contain either a single object, or an array of objects. The "proof" objects structure is defined  at https://w3c-dvcg.github.io/ld-signatures.
 
 

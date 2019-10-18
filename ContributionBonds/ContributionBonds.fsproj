@@ -49,23 +49,23 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="FsLexYacc\Lexing.fs" />
     <Compile Include="FsLexYacc\Parsing.fs" />
-    <FsYacc Include="DID\DidParser.fsy">
+    <None Include="DID\DidParser.fsy">
       <OtherFlags>--module Did.Parser --internal --lexlib Internal.Utilities.Text.Lexing --parslib Internal.Utilities.Text.Parsing -o DID\DidParser.fs</OtherFlags>
-    </FsYacc>
-    <FsLex Include="DID\DidLexer.fsl">
+    </None>
+    <None Include="DID\DidLexer.fsl">
       <OtherFlags>--module Did.Lexer --unicode --internal --lexlib Internal.Utilities.Text.Lexing -o DID\DidLexer.fs</OtherFlags>
-    </FsLex>
+    </None>
     <Compile Include="DID\DidParser.fs" />
     <Compile Include="DID\DidLexer.fs" />
-    <FsYacc Include="JSON\JsonParser.fsy">
+    <None Include="JSON\JsonParser.fsy">
       <OtherFlags>--module Json.Parser --internal --lexlib Internal.Utilities.Text.Lexing --parslib Internal.Utilities.Text.Parsing -o JSON\JsonParser.fs</OtherFlags>
-    </FsYacc>
-    <FsLex Include="JSON\JsonLexer.fsl">
+    </None>
+    <None Include="JSON\JsonLexer.fsl">
       <OtherFlags>--module Json.Lexer --unicode --internal --lexlib Internal.Utilities.Text.Lexing -o JSON\JsonLexer.fs</OtherFlags>
-    </FsLex>
+    </None>
     <Compile Include="JSON\JsonParser.fs" />
     <Compile Include="JSON\JsonLexer.fs" />
-    <Compile Include="JSON\JsonReader.fs" />
+    <Compile Include="JSON\Json.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

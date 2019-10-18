@@ -15,22 +15,14 @@ To do:
     Canonical format for JSON signing
         use my json parser
         sort the labels
-
-
-    let props = {1, 2, 3}
-    const { *, y, z } = props
-
-
-    //x = 1
-    //y = 2
-    //z = 3
+        use json-ld signing?
 
 *)
 
 open System
 open System.Security.Cryptography
 open System.Text
-open Json
+open Json.Parser
 
 
 let (|CommandCreateIdentifier|_|) (argv:string[]) =
@@ -131,7 +123,7 @@ let main argv =
     printfn "%s" gg
 
 
-     // let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
+    // let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
     // "did:example:123456789abcdefghi"
     let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("did:example:::")
 
