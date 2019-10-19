@@ -22,7 +22,7 @@ To do:
 open System
 open System.Security.Cryptography
 open System.Text
-open Json.Parser
+open Json.Api
 
 
 let (|CommandCreateIdentifier|_|) (argv:string[]) =
@@ -75,53 +75,12 @@ let (|CommandSignBond|_|) (argv:string[]) =
     else
         None
 
-
-let base58chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-
-
-// https://gist.github.com/CodesInChaos/3175971
-let GetCheckSum(data: byte array) : byte array =
-    use sha256 = new System.Security.Cryptography.SHA256Managed()
-    let hash1 = sha256.ComputeHash(data)
-    let hash2 = sha256.ComputeHash(hash1)
-    let result = Array.zeroCreate<byte>(4)
-    Array.blit hash2 0 result 0 4
-    result
-
-let ToBase58 (data: byte array) : string =
-    let fiftyeight = bigint 58
-    let mutable dataInt = bigint 0
-
-    for i = 0 to data.Length - 1 do
-        dataInt <- dataInt * (bigint 256) + (bigint (int (data.[i])))
-
-    let sb = System.Text.StringBuilder()
-    while dataInt > (bigint 0) do
-        let remainder = int (dataInt % fiftyeight)
-        dataInt <- dataInt / fiftyeight
-        sb.Append(base58chars.[remainder]) |> ignore
-
-    let mutable i0 = 0
-    while i0 < data.Length && data.[i0] = 0uy do
-        sb.Append('1') |> ignore
-
-    String(Array.rev ((sb.ToString()).ToCharArray()))
-
-
-let ToBase58WithCheckSum (data: byte array) : string =
-    let checkSum = GetCheckSum(data)
-    let dataWithCheckSum = Array.concat [ data; checkSum; ]
-    ToBase58 dataWithCheckSum
-
-
 [<EntryPoint>]
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
 
-
     let gg = ToBase58([| 1uy; |])
     printfn "%s" gg
-
 
     // let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
     // "did:example:123456789abcdefghi"
@@ -129,7 +88,6 @@ let main argv =
 
     //let parseresult = Parser.json Lexer.json lexbuf
     let parseresult = Did.Parser.did Did.Lexer.did lexbuf
-
     
     //let parseresult = System.Convert.ToString("\u0042") :> obj
     printfn "%A" parseresult

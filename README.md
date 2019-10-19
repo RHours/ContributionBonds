@@ -97,14 +97,12 @@ https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs
     "type": "RsaSignature2018",
     "creator": "https://example.com/i/pat/keys/5",
     "created": "2017-09-23T20:21:34Z",
-    "domain": "example.org",
     "nonce": "2bbgh3dgjg2302d-d2b3gi423d42",
     "proofValue": "eyJ0eXAiOiJK...gFWFOEjXk"
   }, {
     "type": "RsaSignature2018",
     "creator": "https://example.com/i/kelly/keys/7f3j",
     "created": "2017-09-23T20:24:12Z",
-    "domain": "example.org",
     "nonce": "83jj4hd62j49gk38",
     "proofValue": "eyiOiJJ0eXAK...EjXkgFWFO"
   }]
@@ -124,5 +122,6 @@ https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs
   * The lable names of object properties are sorted based on their unicode value. Duplicates are not allowed in JSON so there's no issue of picking between duplicates.
   * The signing process will ignore a final object property called "proof". The "proof" label must be the last one in the root object. Only objects can be signed. There's no support for signature chains in this sceme but proof sets are supported.
   * The signing process will update an existing "proof" label or create a new one. A "proof" property may contain either a single object, or an array of objects. The "proof" objects structure is defined  at https://w3c-dvcg.github.io/ld-signatures.
+  * The signature bytes are prepended with a nonce. The nonce is given in the "proof" object.
 
 
