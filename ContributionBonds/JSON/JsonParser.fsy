@@ -8,23 +8,12 @@ type JsonNumber =
     | JsonFloat     of float
 
 type JsonValue = 
-    | JsonObject    of Map<string, JsonValue>
+    | JsonObject    of (string * JsonValue) array
     | JsonArray     of JsonValue array
     | JsonString    of string
     | JsonNumber    of JsonNumber
     | JsonBool      of bool
     | JsonNull
-
-let JsonMembersToMap (members: (string * JsonValue) list) : Map<string, JsonValue> =
-    let empty = Map.empty<string, JsonValue>
-    let add k v acc = 
-        if Map.containsKey k acc then
-            failwith "duplicate key in object"
-        else
-            Map.add k v acc
-        
-    List.fold (fun acc (k,v) -> add k v acc) empty members
-
 
 %}
 
@@ -54,8 +43,8 @@ value:
 	| NULL			{ JsonValue.JsonNull }
  
  object:
-	| LBRACE RBRACE				{ (Map.empty<string, JsonValue>) }
-	| LBRACE members RBRACE		{ (JsonMembersToMap $2) }
+	| LBRACE RBRACE				{ [| |] }
+	| LBRACE members RBRACE		{ Array.ofList $2 }
 
 members:
 	| jsonmember                    { [ $1 ]  }

@@ -22,6 +22,7 @@ To do:
 open System
 open System.Security.Cryptography
 open System.Text
+open Json.Parser
 open Json.Api
 
 
@@ -76,38 +77,73 @@ let (|CommandSignBond|_|) (argv:string[]) =
         None
 
 
-let WritePEM (data: byte array) (label: string) (tw: System.IO.TextWriter) =
-    // PRIVATE KEY
-    tw.WriteLine(sprintf "-----BEGIN %s-----" label)
-    tw.WriteLine(System.Convert.ToBase64String(data))
-    tw.WriteLine(sprintf "-----END %s-----" label)
+let MakePEMString (data: byte array) (label: string) =
+    // label example: PRIVATE KEY
+    let sb = System.Text.StringBuilder()
+    sb.AppendLine(sprintf "-----BEGIN %s-----" label)
+        .AppendLine(System.Convert.ToBase64String(data))
+        .AppendLine(sprintf "-----END %s-----" label)
+        .ToString()
 
-let WriteDID (pubKey: byte[]) (tw: System.IO.TextWriter) =
+let MakeDIDString (pubKey: byte[]) =
     let didMethodSpecifcId = ToBase58WithCheckSum pubKey
-    tw.Write("did:rhours:")
-    tw.Write(didMethodSpecifcId)
+    sprintf "did:rhours:%s" didMethodSpecifcId
     
-let CreateDID() = 
+let CreateIdentityDID (path: System.IO.DirectoryInfo) = 
+    // generate a random id of 32 bytes
     // generate a key pair
     // create a PEM string with the private key
     // create a DID string with the public key
     // create a DID document
 
+    use rng = RandomNumberGenerator.Create()
+    let idBytes = Array.create<byte> 32 0uy
+    rng.GetBytes(idBytes)
+    let didString = MakeDIDString idBytes
+
     use rsa = new RSACng()
     let keyPrivate = rsa.Key.Export(CngKeyBlobFormat.GenericPrivateBlob)
     let keyPublic = rsa.Key.Export(CngKeyBlobFormat.GenericPublicBlob)
 
+    // TO DO: Look into .net secure strings
+    let privatePEM = MakePEMString keyPrivate "PRIVATE KEY"
+    let publicPEM = MakePEMString keyPublic "PUBLIC KEY"
 
+    let didAuthentication = 
+        JsonValue.JsonObject(
+            [|
+                ("id", JsonValue.JsonString(didString + "keys-1"));
+                ("type", JsonValue.JsonString("RsaVerificationKey2018"));
+                ("controller", JsonValue.JsonString(didString));
+                ("publicKeyPem", JsonValue.JsonString(publicPEM));
+            |]
+        )
 
+    let didDocument = 
+        JsonValue.JsonObject(
+            [|
+                ("@context", JsonValue.JsonString("https://www.w3.org/2019/did/v1"));
+                ("id", JsonValue.JsonString(didString));
+                ("authentication", didAuthentication);
+            |]
+        )
 
-    ()
+    use didDocFile = System.IO.File.CreateText(System.IO.Path.Combine(path.FullName, didString.Replace(":", "_") + ".json"))
+    WriteJson didDocument didDocFile
+    didDocFile.Flush()
+    didDocFile.Close()
+
+    use didPrivatePemFile = System.IO.File.CreateText(System.IO.Path.Combine(path.FullName, didString.Replace(":", "_") + ".pem"))
+    didPrivatePemFile.Write(privatePEM)
+    didPrivatePemFile.Flush()
+    didPrivatePemFile.Close()
 
 
 [<EntryPoint>]
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
 
-
+    CreateIdentityDID(System.IO.DirectoryInfo("..\\.."))
 
 
 

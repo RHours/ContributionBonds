@@ -91,13 +91,14 @@ let FromBase58WithCheckSum (s: string) =
 let rec private WriteCanonicalJson (json: Json.Parser.JsonValue) (tw: TextWriter) (isRoot: bool) =
     match json with
     | JsonValue.JsonObject(o) -> 
-        // Note: toArray orders the keys
         let properties = 
-            if isRoot then
-                Map.toArray o |> 
-                Array.filter (fun (n, _) -> n <> "proof")
-            else
-                Map.toArray o
+            (
+                if isRoot then
+                    o |>
+                    Array.filter (fun (n, _) -> n <> "proof")
+                else
+                    o
+            ) |> Array.sortBy (fun (n, _) -> n)
 
         tw.Write('{')
         if properties.Length > 0 then
@@ -135,6 +136,61 @@ let rec private WriteCanonicalJson (json: Json.Parser.JsonValue) (tw: TextWriter
     | JsonValue.JsonNull -> 
         tw.Write("null")
         
+let private tab = "    "
+let private WriteIndent (tw: TextWriter) (indent: int) = 
+    for i = 1 to indent do
+        tw.Write(tab)
+
+let rec private WriteFormattedJson (json: Json.Parser.JsonValue) (tw: TextWriter) (indent: int) =
+    match json with
+    | JsonValue.JsonObject(properties) -> 
+        tw.WriteLine('{')
+
+        if properties.Length > 0 then
+            for i = 0 to properties.Length - 1 do
+                let (n, v) = properties.[i]
+                WriteIndent tw (indent + 1)
+                tw.Write('\"')
+                tw.Write(n)
+                tw.Write('\"')
+                tw.Write(": ")
+                WriteFormattedJson v tw (indent + 1)
+                
+                if i < properties.Length - 2 then
+                    tw.WriteLine(',')
+                else
+                    tw.WriteLine()
+
+        WriteIndent tw indent
+        tw.Write('}')
+
+    | JsonValue.JsonArray(a) -> 
+        tw.WriteLine('[')
+
+        if a.Length > 0 then
+            for i = 0 to a.Length - 2 do
+                WriteIndent tw (indent + 1)
+                WriteFormattedJson (a.[i]) tw (indent + 1)
+                tw.WriteLine(',')
+            WriteFormattedJson (a.[a.Length - 1]) tw (indent + 1)
+
+        WriteIndent tw indent
+        tw.WriteLine(']')
+    | JsonValue.JsonString(s) -> 
+        tw.Write("\"")
+        tw.Write(s.Replace("\\", "\\\\").Replace("\"", "\\\\"))
+        tw.Write("\"")
+    | JsonValue.JsonNumber(n) ->
+        match n with
+        | JsonNumber.JsonInteger(i) -> 
+            tw.Write(Convert.ToString(i))
+        | JsonNumber.JsonFloat(f) -> 
+            tw.Write(Convert.ToString(f))
+    | JsonValue.JsonBool(b) -> 
+        if b then tw.Write("true") else tw.Write("false")
+    | JsonValue.JsonNull -> 
+        tw.Write("null")
+
 let SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string) =
     // Get the canonical bytes
     // Prepend with a nonce
@@ -142,7 +198,7 @@ let SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string) 
     // Sign them
     // Update the document with a "proof" element
 
-    let jsonMap = 
+    let jsonArray = 
         match json with
         | JsonValue.JsonObject(o) -> o
         | _ -> failwith "Can only sign a JsonObject."
@@ -166,30 +222,35 @@ let SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string) 
     let signatureBytes = rsaFormatter.CreateSignature(hashBytes)
 
     let proofObject = 
-        let proofMap = 
-            Map.empty<string, JsonValue> |>
-            Map.add "type" (JsonValue.JsonString("RsaSignature2018")) |>
-            Map.add "creator" (JsonValue.JsonString(creator)) |>
-            Map.add "created" (JsonValue.JsonString(DateTime.UtcNow.ToString("s", System.Globalization.CultureInfo.InvariantCulture))) |>
-            Map.add "nonce" (JsonValue.JsonString(System.Convert.ToBase64String(nonceBytes))) |>
-            Map.add "proofValue" (JsonValue.JsonString(System.Convert.ToBase64String(signatureBytes)))
+        let proofArray = 
+            [|
+                ("type", (JsonValue.JsonString("RsaSignature2018")));
+                ("creator", (JsonValue.JsonString(creator)));
+                ("created", (JsonValue.JsonString(DateTime.UtcNow.ToString("s", System.Globalization.CultureInfo.InvariantCulture))));
+                ("nonce", (JsonValue.JsonString(System.Convert.ToBase64String(nonceBytes))));
+                ("proofValue", (JsonValue.JsonString(System.Convert.ToBase64String(signatureBytes))));
+            |]
 
-        JsonValue.JsonObject(proofMap)
+        JsonValue.JsonObject(proofArray)
 
-    match jsonMap.TryFind("proof") with
+    match jsonArray |> Array.tryFindIndex (fun (n, _) -> n = "proof") with
     | None ->
         // no proof property, add one with the new proofObject as the value
-        JsonValue.JsonObject(jsonMap |> Map.add "proof" proofObject)
-    | Some(JsonValue.JsonObject(_) as existingProofObject) ->
-        // existing proof property is object, replace it with an array of proofs with this new one at the end
-        let proofArray = JsonValue.JsonArray([| existingProofObject; proofObject; |])
-        JsonValue.JsonObject(jsonMap |> Map.remove "proof" |> Map.add "proof" proofArray)
-    | Some(JsonValue.JsonArray(proofElements)) ->
-        // existing proof property is an array, append this proofObject to it
-        let proofArray = JsonValue.JsonArray(Array.append proofElements [| proofObject; |])        
-        JsonValue.JsonObject(jsonMap |> Map.remove "proof" |> Map.add "proof" proofArray)
-    | _ ->
-        failwith "proof property must be object or array."
+        JsonValue.JsonObject(Array.append jsonArray [| ("proof", proofObject) |])
+    | Some(index) ->
+        match jsonArray.[index] with
+        | (_, JsonValue.JsonObject(existingProofObject) ) ->
+            // existing proof property is object, replace it with an array of proofs with this new one at the end
+            let proofArray = JsonValue.JsonArray([| JsonValue.JsonObject(existingProofObject); proofObject; |])
+            jsonArray.[index] <- ("proof", proofArray)
+            json
+        | (_, JsonValue.JsonArray(proofElements)) ->
+            // existing proof property is an array, append this proofObject to it
+            let proofArray = JsonValue.JsonArray(Array.append proofElements [| proofObject; |])        
+            jsonArray.[index] <- ("proof", proofArray)
+            json
+        | _ ->
+            failwith "proof property must be object or array."
 
 let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: JsonValue option) : JsonValue option =
     // get canonical bytes
@@ -218,11 +279,11 @@ let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: J
             | None ->
                 // Caller did not provide proof, look in json data for proof property
                 match json with
-                | JsonValue.JsonObject(jsonMap) ->
-                    match Map.tryFind "proof" jsonMap with
-                    | Some(JsonValue.JsonObject(_) as jsonProofObject) ->
+                | JsonValue.JsonObject(jsonProperties) ->
+                    match jsonProperties |> Array.tryPick (fun (n, v) -> if n = "proof" then Some(v) else None) with
+                    | Some(JsonValue.JsonObject(_) as v) ->
                         // There is a proof property and it is an object
-                        yield jsonProofObject
+                        yield v
                     | Some(JsonValue.JsonArray(jsonProofArray)) ->
                         // There is a proof property and it is an array, use these in reverse order
                         for i = (Array.length jsonProofArray) - 1 downto 0 do
@@ -246,14 +307,14 @@ let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: J
     use sha256 = SHA256.Create()
 
     let VerifyProof (proof: JsonValue) = 
-        let proofMap =
+        let proofProperties =
             match proof with
             | JsonValue.JsonObject(o) -> o
             | _ -> failwith "proof value must be of type object."
 
         //      construct new bytes with nonce in front
         let bytesWithNonce = 
-            match Map.tryFind "nonce" proofMap with
+            match proofProperties |> Array.tryPick (fun (n, v) -> if n = "nonce" then Some(v) else None) with
             | Some(JsonValue.JsonString(nonceString)) ->
                 let nonceBytes = System.Convert.FromBase64String(nonceString)
                 Array.append nonceBytes canonicalBytes
@@ -265,7 +326,7 @@ let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: J
         let hashBytes = sha256.ComputeHash(bytesWithNonce)
 
         let signatureBytes = 
-            match Map.tryFind "proofValue" proofMap with
+            match proofProperties |> Array.tryPick (fun (n, v) -> if n = "proofValue" then Some(v) else None) with
             | Some(JsonValue.JsonString(signatureString)) ->
                 System.Convert.FromBase64String(signatureString)
             | Some(_) ->
@@ -275,7 +336,7 @@ let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: J
 
         //      resolve the creator to get the public key
         let creatorPublicKey =
-            match Map.tryFind "creator" proofMap with
+            match proofProperties |> Array.tryPick (fun (n, v) -> if n = "creator" then Some(v) else None) with
             | Some(JsonValue.JsonString(creatorString)) ->
                 resolver creatorString
             | Some(_) ->
@@ -293,6 +354,9 @@ let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: J
     // Return the first proof which verifies, or None
     proofSeq |>
     Seq.tryFind VerifyProof
+
+let WriteJson (json: JsonValue) (tw: TextWriter) =
+    WriteFormattedJson json tw 0
 
 let ReadJson (tr: TextReader) =
     let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromTextReader(tr)
