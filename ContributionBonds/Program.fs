@@ -75,9 +75,41 @@ let (|CommandSignBond|_|) (argv:string[]) =
     else
         None
 
+
+let WritePEM (data: byte array) (label: string) (tw: System.IO.TextWriter) =
+    // PRIVATE KEY
+    tw.WriteLine(sprintf "-----BEGIN %s-----" label)
+    tw.WriteLine(System.Convert.ToBase64String(data))
+    tw.WriteLine(sprintf "-----END %s-----" label)
+
+let WriteDID (pubKey: byte[]) (tw: System.IO.TextWriter) =
+    let didMethodSpecifcId = ToBase58WithCheckSum pubKey
+    tw.Write("did:rhours:")
+    tw.Write(didMethodSpecifcId)
+    
+let CreateDID() = 
+    // generate a key pair
+    // create a PEM string with the private key
+    // create a DID string with the public key
+    // create a DID document
+
+    use rsa = new RSACng()
+    let keyPrivate = rsa.Key.Export(CngKeyBlobFormat.GenericPrivateBlob)
+    let keyPublic = rsa.Key.Export(CngKeyBlobFormat.GenericPublicBlob)
+
+
+
+
+    ()
+
+
 [<EntryPoint>]
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
+
+
+
+
 
     let gg = ToBase58([| 1uy; |])
     printfn "%s" gg
