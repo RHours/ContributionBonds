@@ -7,10 +7,11 @@ Following is an example of a contribution bond in JSON format.
 ```javascript
 {
     "@context": "https://github.com/RHours/ContributionBonds",
+    "id": "BOND_DID",
     "terms": "TERMS_HASH_STRING",
-    "company": "COMPANY_IDENTIFIER",
-    "contributor": "CONTRIBUTOR_IDENTIFIER",
-    "date": "yyyy-mm-dd",
+    "company": "COMPANY_DID",
+    "contributor": "CONTRIBUTOR_DID",
+    "created": "UTC creation date, format is yyyy-MM-ddThh:mm:ss",
     "amount": 100.00,
     "interest-rate": 0.25,
     "max": 1000.00,
@@ -18,7 +19,7 @@ Following is an example of a contribution bond in JSON format.
     "payments": 
         [
             {
-                "date": "yyyy-mm-dd",
+                "date": "UTC payment date, format is yyyy-MM-ddThh:mm:ss",
                 "interest": 16.52,
                 "amount": 40.00,
                 "balance": 76.52

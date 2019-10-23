@@ -144,10 +144,13 @@ let private WriteIndent (tw: TextWriter) (indent: int) =
 let rec private WriteFormattedJson (json: Json.Parser.JsonValue) (tw: TextWriter) (indent: int) =
     match json with
     | JsonValue.JsonObject(properties) -> 
-        tw.WriteLine('{')
+        match properties.Length with
+        | 0 -> 
+            tw.Write("{ }")
 
-        if properties.Length > 0 then
-            for i = 0 to properties.Length - 1 do
+        | length ->
+            tw.WriteLine('{')
+            for i = 0 to length - 1 do
                 let (n, v) = properties.[i]
                 WriteIndent tw (indent + 1)
                 tw.Write('\"')
@@ -156,29 +159,34 @@ let rec private WriteFormattedJson (json: Json.Parser.JsonValue) (tw: TextWriter
                 tw.Write(": ")
                 WriteFormattedJson v tw (indent + 1)
                 
-                if i < properties.Length - 2 then
+                if i < length - 1 then
                     tw.WriteLine(',')
                 else
                     tw.WriteLine()
 
-        WriteIndent tw indent
-        tw.Write('}')
+            WriteIndent tw indent
+            tw.Write('}')
 
-    | JsonValue.JsonArray(a) -> 
-        tw.WriteLine('[')
+    | JsonValue.JsonArray(elements) -> 
+        match elements.Length with
+        | 0 -> 
+            tw.Write("[ ]")
 
-        if a.Length > 0 then
-            for i = 0 to a.Length - 2 do
+        | length ->
+            tw.WriteLine('[')
+
+            for i = 0 to length - 2 do
                 WriteIndent tw (indent + 1)
-                WriteFormattedJson (a.[i]) tw (indent + 1)
+                WriteFormattedJson (elements.[i]) tw (indent + 1)
                 tw.WriteLine(',')
-            WriteFormattedJson (a.[a.Length - 1]) tw (indent + 1)
 
-        WriteIndent tw indent
-        tw.WriteLine(']')
+            WriteFormattedJson (elements.[length - 1]) tw (indent + 1)
+            WriteIndent tw indent
+            tw.Write(']')
+
     | JsonValue.JsonString(s) -> 
         tw.Write("\"")
-        tw.Write(s.Replace("\\", "\\\\").Replace("\"", "\\\\"))
+        tw.Write(s.Replace("\\", "\\\\").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\"", "\\"))
         tw.Write("\"")
     | JsonValue.JsonNumber(n) ->
         match n with
@@ -190,6 +198,13 @@ let rec private WriteFormattedJson (json: Json.Parser.JsonValue) (tw: TextWriter
         if b then tw.Write("true") else tw.Write("false")
     | JsonValue.JsonNull -> 
         tw.Write("null")
+
+let WriteJson (json: JsonValue) (tw: TextWriter) =
+    WriteFormattedJson json tw 0
+
+let ReadJson (tr: TextReader) =
+    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromTextReader(tr)
+    Json.Parser.json Json.Lexer.json lexbuf
 
 let SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string) =
     // Get the canonical bytes
@@ -355,11 +370,5 @@ let VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: J
     proofSeq |>
     Seq.tryFind VerifyProof
 
-let WriteJson (json: JsonValue) (tw: TextWriter) =
-    WriteFormattedJson json tw 0
-
-let ReadJson (tr: TextReader) =
-    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromTextReader(tr)
-    Json.Parser.json Json.Lexer.json lexbuf
     
     

@@ -21,6 +21,7 @@ let JsonHexToInt (jc:char) : int =
 
 let JsonStringToString (js:string) : string =
     let sb = System.Text.StringBuilder()
+
     let rec scan mode i =
         match js.[i] with
         | _ when i >= js.Length -> ()
@@ -30,22 +31,24 @@ let JsonStringToString (js:string) : string =
         | '\"' when mode = 2 -> sb.Append('\"') |> ignore; scan 1 (i+1)
         | '\\' when mode = 2 -> sb.Append('\\') |> ignore; scan 1 (i+1)
         | '/' when mode = 2 -> sb.Append('/') |> ignore; scan 1 (i+1)
-        | '\b' when mode = 2 -> sb.Append('\b') |> ignore; scan 1 (i+1)
-        | '\f' when mode = 2 -> sb.Append('\f') |> ignore; scan 1 (i+1)
-        | '\n' when mode = 2 -> sb.Append('\n') |> ignore; scan 1 (i+1)
-        | '\r' when mode = 2 -> sb.Append('\r') |> ignore; scan 1 (i+1)
-        | '\t' when mode = 2 -> sb.Append('\t') |> ignore; scan 1 (i+1)
+        | 'b' when mode = 2 -> sb.Append('\b') |> ignore; scan 1 (i+1)
+        | 'f' when mode = 2 -> sb.Append('\f') |> ignore; scan 1 (i+1)
+        | 'n' when mode = 2 -> sb.Append('\n') |> ignore; scan 1 (i+1)
+        | 'r' when mode = 2 -> sb.Append('\r') |> ignore; scan 1 (i+1)
+        | 't' when mode = 2 -> sb.Append('\t') |> ignore; scan 1 (i+1)
         | 'u' when mode = 2 -> 
             let hexescape : int = (0x1000 * (JsonHexToInt (js.[i+1]))) + (0x100 * (JsonHexToInt (js.[i+2]))) + (0x10 * (JsonHexToInt (js.[i+3]))) + (JsonHexToInt (js.[i+4]))
             sb.Append(System.Convert.ToChar(hexescape)) |> ignore
-            scan 0 (i+5)
+            scan 1 (i+5)
+        | c when mode = 2 ->
+            failwith "Unexpected character escape in JSON string."
         | c -> sb.Append(c) |> ignore; scan 1 (i+1)
 
     scan 0 0
     sb.ToString()
 
 
-# 48 "JSON\JsonLexer.fs"
+# 51 "JSON\JsonLexer.fs"
 let trans : uint16[] array = 
     [| 
     (* State 0 *)
@@ -150,84 +153,84 @@ let rec _fslex_dummy () = _fslex_dummy()
 and json  lexbuf =
   match _fslex_tables.Interpret(0,lexbuf) with
   | 0 -> ( 
-# 60 "JSON\JsonLexer.fsl"
+# 63 "JSON\JsonLexer.fsl"
                               Parser.STRING( JsonStringToString (lexeme lexbuf) ) 
-# 155 "JSON\JsonLexer.fs"
+# 158 "JSON\JsonLexer.fs"
           )
   | 1 -> ( 
-# 61 "JSON\JsonLexer.fsl"
+# 64 "JSON\JsonLexer.fsl"
                                Parser.INTEGER( lexeme lexbuf ) 
-# 160 "JSON\JsonLexer.fs"
+# 163 "JSON\JsonLexer.fs"
           )
   | 2 -> ( 
-# 62 "JSON\JsonLexer.fsl"
+# 65 "JSON\JsonLexer.fsl"
                                 Parser.FRACTION( lexeme lexbuf ) 
-# 165 "JSON\JsonLexer.fs"
+# 168 "JSON\JsonLexer.fs"
           )
   | 3 -> ( 
-# 63 "JSON\JsonLexer.fsl"
+# 66 "JSON\JsonLexer.fsl"
                                 Parser.EXPONENT( lexeme lexbuf ) 
-# 170 "JSON\JsonLexer.fs"
+# 173 "JSON\JsonLexer.fs"
           )
   | 4 -> ( 
-# 64 "JSON\JsonLexer.fsl"
+# 67 "JSON\JsonLexer.fsl"
                             Parser.LBRACE 
-# 175 "JSON\JsonLexer.fs"
+# 178 "JSON\JsonLexer.fs"
           )
   | 5 -> ( 
-# 65 "JSON\JsonLexer.fsl"
+# 68 "JSON\JsonLexer.fsl"
                             Parser.RBRACE 
-# 180 "JSON\JsonLexer.fs"
+# 183 "JSON\JsonLexer.fs"
           )
   | 6 -> ( 
-# 66 "JSON\JsonLexer.fsl"
+# 69 "JSON\JsonLexer.fsl"
                             Parser.LBRACKET 
-# 185 "JSON\JsonLexer.fs"
+# 188 "JSON\JsonLexer.fs"
           )
   | 7 -> ( 
-# 67 "JSON\JsonLexer.fsl"
+# 70 "JSON\JsonLexer.fsl"
                             Parser.RBRACKET 
-# 190 "JSON\JsonLexer.fs"
+# 193 "JSON\JsonLexer.fs"
           )
   | 8 -> ( 
-# 68 "JSON\JsonLexer.fsl"
+# 71 "JSON\JsonLexer.fsl"
                             Parser.COMMA 
-# 195 "JSON\JsonLexer.fs"
+# 198 "JSON\JsonLexer.fs"
           )
   | 9 -> ( 
-# 69 "JSON\JsonLexer.fsl"
+# 72 "JSON\JsonLexer.fsl"
                             Parser.COLON 
-# 200 "JSON\JsonLexer.fs"
+# 203 "JSON\JsonLexer.fs"
           )
   | 10 -> ( 
-# 70 "JSON\JsonLexer.fsl"
+# 73 "JSON\JsonLexer.fsl"
                               Parser.TRUE 
-# 205 "JSON\JsonLexer.fs"
+# 208 "JSON\JsonLexer.fs"
           )
   | 11 -> ( 
-# 71 "JSON\JsonLexer.fsl"
+# 74 "JSON\JsonLexer.fsl"
                                Parser.FALSE 
-# 210 "JSON\JsonLexer.fs"
+# 213 "JSON\JsonLexer.fs"
           )
   | 12 -> ( 
-# 72 "JSON\JsonLexer.fsl"
+# 75 "JSON\JsonLexer.fsl"
                               Parser.NULL 
-# 215 "JSON\JsonLexer.fs"
+# 218 "JSON\JsonLexer.fs"
           )
   | 13 -> ( 
-# 73 "JSON\JsonLexer.fsl"
+# 76 "JSON\JsonLexer.fsl"
                            json lexbuf 
-# 220 "JSON\JsonLexer.fs"
+# 223 "JSON\JsonLexer.fs"
           )
   | 14 -> ( 
-# 74 "JSON\JsonLexer.fsl"
+# 77 "JSON\JsonLexer.fsl"
                                              Parser.EOF 
-# 225 "JSON\JsonLexer.fs"
+# 228 "JSON\JsonLexer.fs"
           )
   | 15 -> ( 
-# 75 "JSON\JsonLexer.fsl"
+# 78 "JSON\JsonLexer.fsl"
                                              failwith "error 1" 
-# 230 "JSON\JsonLexer.fs"
+# 233 "JSON\JsonLexer.fs"
           )
   | _ -> failwith "json"
 

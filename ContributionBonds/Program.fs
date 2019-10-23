@@ -77,6 +77,9 @@ let (|CommandSignBond|_|) (argv:string[]) =
         None
 
 
+let DateTimeToString (date: DateTime) =
+    date.ToString("yyyy-MM-ddThh:mm:ss")
+
 let MakePEMString (data: byte array) (label: string) =
     // label example: PRIVATE KEY
     let sb = System.Text.StringBuilder()
@@ -85,8 +88,21 @@ let MakePEMString (data: byte array) (label: string) =
         .AppendLine(sprintf "-----END %s-----" label)
         .ToString()
 
-let MakeDIDString (pubKey: byte[]) =
-    let didMethodSpecifcId = ToBase58WithCheckSum pubKey
+let ParsePEMString (pem: string) =
+    let pemRegex = System.Text.RegularExpressions.Regex("""[\-]+BEGIN (?<label>[^\-]+)[\-]+\r?\n?(?<key>[A-Za-z0-9\+\/\=]*)\r?\n?[\-]+END [^\-]+[\-]+\r?\n?""")
+    let result = pemRegex.Match(pem)
+    if result.Success then
+        (result.Groups.[1].Value, result.Groups.[2].Value)
+    else
+        failwith "could not parse pem"
+
+let DIDFileName (did: string) = did.Replace(":", "_")
+
+let CreateRhoursDID () = 
+    use rng = RandomNumberGenerator.Create()
+    let idBytes = Array.create<byte> 16 0uy
+    rng.GetBytes(idBytes)
+    let didMethodSpecifcId = ToBase58WithCheckSum idBytes
     sprintf "did:rhours:%s" didMethodSpecifcId
     
 let CreateIdentityDID (path: System.IO.DirectoryInfo) = 
@@ -96,10 +112,7 @@ let CreateIdentityDID (path: System.IO.DirectoryInfo) =
     // create a DID string with the public key
     // create a DID document
 
-    use rng = RandomNumberGenerator.Create()
-    let idBytes = Array.create<byte> 32 0uy
-    rng.GetBytes(idBytes)
-    let didString = MakeDIDString idBytes
+    let didString = CreateRhoursDID()
 
     use rsa = new RSACng()
     let keyPrivate = rsa.Key.Export(CngKeyBlobFormat.GenericPrivateBlob)
@@ -128,152 +141,220 @@ let CreateIdentityDID (path: System.IO.DirectoryInfo) =
             |]
         )
 
-    use didDocFile = System.IO.File.CreateText(System.IO.Path.Combine(path.FullName, didString.Replace(":", "_") + ".json"))
+    let didFileNameBase = didString.Replace(":", "_")
+    let pemFullFileName = System.IO.Path.Combine(path.FullName, didFileNameBase + ".pem")
+    let didFullFileName = System.IO.Path.Combine(path.FullName, didFileNameBase + ".json")
+
+    use didPrivatePemFile = System.IO.File.CreateText(pemFullFileName)
+    didPrivatePemFile.Write(privatePEM)
+    didPrivatePemFile.Flush()
+    didPrivatePemFile.Close()
+    
+    use didDocFile = System.IO.File.CreateText(didFullFileName)
     WriteJson didDocument didDocFile
     didDocFile.Flush()
     didDocFile.Close()
 
-    use didPrivatePemFile = System.IO.File.CreateText(System.IO.Path.Combine(path.FullName, didString.Replace(":", "_") + ".pem"))
-    didPrivatePemFile.Write(privatePEM)
-    didPrivatePemFile.Flush()
-    didPrivatePemFile.Close()
+    // return the DID string
+    didString
 
-
-[<EntryPoint>]
-let main argv = 
-    Internal.Utilities.Text.Parsing.Flags.debug <- false
-
-    CreateIdentityDID(System.IO.DirectoryInfo("..\\.."))
-
-
-
-    let gg = ToBase58([| 1uy; |])
-    printfn "%s" gg
-
-    // let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("{ \"x\":5, \"y\":[1,2,false, null, {}, [0]] }")
-    // "did:example:123456789abcdefghi"
-    let lexbuf = Internal.Utilities.Text.Lexing.LexBuffer<_>.FromString("did:example:::")
-
-    //let parseresult = Parser.json Lexer.json lexbuf
-    let parseresult = Did.Parser.did Did.Lexer.did lexbuf
-    
-    //let parseresult = System.Convert.ToString("\u0042") :> obj
-    printfn "%A" parseresult
-
-
-    // addr=right(keccak256(pubkey),20)
-
-    match argv with
-    | CommandCreateIdentifier -> 
-        printfn "id"
-    | CommandSignBond (None, companyIsSigning, contributorIsSigning, bondFile) ->
-        
-        ()
-    | CommandSignBond (Some(err), _, _, _) ->
-        printfn "%s" err
-    | _ ->
-        printfn "bad command"
-
-
-
-    use dsaCompany = new System.Security.Cryptography.ECDsaCng()
-    use dsaContributor = new System.Security.Cryptography.ECDsaCng()
-
-    dsaCompany.HashAlgorithm <- CngAlgorithm.Sha256
-    dsaContributor.HashAlgorithm <- CngAlgorithm.Sha256
-
-    let pubkeyCompany = dsaCompany.Key.Export(CngKeyBlobFormat.EccPublicBlob)
-    let privkeyCompany = dsaCompany.Key.Export(CngKeyBlobFormat.EccPrivateBlob)
-
-    let pubkeyContributor = dsaContributor.Key.Export(CngKeyBlobFormat.EccPublicBlob)
-    let privkeyContributor = dsaContributor.Key.Export(CngKeyBlobFormat.EccPrivateBlob)
-
-    let sCompanyKey = System.Convert.ToBase64String(pubkeyCompany)
-    let sContributorKey = System.Convert.ToBase64String(pubkeyContributor)
-    
-    let jsonContributionBond = sprintf """
+let CreateBond  (path: System.IO.DirectoryInfo)
+                (terms_file: string) 
+                (company_did: string) 
+                (contributor_did: string) 
+                (amount: decimal)
+                (rate: decimal)
+                (max: decimal) =
+    (*
 {
-    "company": "COMPANY_KEY",
-    "contributor": "CONTRIBUTOR_KEY",
+    "@context": "https://github.com/RHours/ContributionBonds",
+    "id": "BOND_DID",
+    "terms": "TERMS_HASH_STRING",
+    "company": "COMPANY_DID",
+    "contributor": "CONTRIBUTOR_DID",
+    "created": "yyyy-MM-ddThh:mm:ss",
     "amount": 100.00,
-    "interest": 0.25,
+    "interest-rate": 0.25,
     "max": 1000.00,
     "unit": "USD",
-    "payments": [ ]
-}
-    """
-
-    printfn "%s" jsonContributionBond
-
-    let jsonContributionBond1 = jsonContributionBond.Replace("COMPANY_KEY", sCompanyKey)
-    let jsonContributionBond1 = jsonContributionBond1.Replace("CONTRIBUTOR_KEY", sContributorKey)
-
-    printfn "%s" jsonContributionBond1
-
-    // FYI - We know this is not a reliable way to convert string to bytes
-    let utf8 = Encoding.UTF8
-    let dataContributionBond = utf8.GetBytes(jsonContributionBond1)
-
-    let signatureCompany = dsaCompany.SignData(dataContributionBond)
-    let signatureContributor = dsaContributor.SignData(dataContributionBond)
-
-    let jsonSignature = """
-{
-    "issuance": {
-        "company": "COMPANY_SIGNATURE",
-        "contributor": "CONTRIBUTOR_SIGNATURE"
-    },
-    "payments": [ ]
-}    
-    """
-
-    let jsonSignature1 = jsonSignature.Replace("COMPANY_SIGNATURE", System.Convert.ToBase64String(signatureCompany))
-    let jsonSignature1 = jsonSignature1.Replace("CONTRIBUTOR_SIGNATURE", System.Convert.ToBase64String(signatureContributor))
-
-    printfn "%s" jsonSignature1
-
-    let jsonPayments = """
+    "payments": 
         [
             {
-                "date": "2019-11-04",
+                "date": "yyyy-MM-ddThh:mm:ss",
                 "interest": 16.52,
                 "amount": 40.00,
                 "balance": 76.52
             }
         ]
-"""
+}
+    *)
+
+    let bondDidString = CreateRhoursDID()
+    let createdString = DateTimeToString (DateTime.UtcNow)
+
+    let termsBytes = 
+        if System.IO.File.Exists(terms_file) then
+            use tf = System.IO.File.OpenText(terms_file)
+            let terms = tf.ReadToEnd()
+            System.Text.UTF8Encoding.UTF8.GetBytes(terms)
+        else
+            failwith "terms file not found."
+
+    use sha256 = SHA256.Create()
+    let terms_hash = sha256.ComputeHash(termsBytes)
+
+    let jsonBond = 
+        JsonValue.JsonObject(
+            [|
+                ("@context", JsonValue.JsonString("https://github.com/RHours/ContributionBonds"));
+                ("id", JsonValue.JsonString(bondDidString));
+                ("terms", JsonValue.JsonString(System.Convert.ToBase64String(terms_hash)));
+                ("company", JsonValue.JsonString(company_did));
+                ("contributor", JsonValue.JsonString(contributor_did));
+                ("created", JsonValue.JsonString(createdString));
+                ("amount", JsonValue.JsonString(amount.ToString()));
+                ("interest-rate", JsonValue.JsonString(rate.ToString()));
+                ("max", JsonValue.JsonString(max.ToString()));
+                ("unit", JsonValue.JsonString("USD"));
+                ("payments", JsonValue.JsonArray([||]));
+            |]
+        )
+
+    use bondFile = System.IO.File.CreateText(System.IO.Path.Combine(path.FullName, bondDidString.Replace(":", "_") + ".json"))
+    WriteJson jsonBond bondFile
+    bondFile.Flush()
+    bondFile.Close()
+
+    // Return the bond DID string
+    bondDidString
+
+let SignBond (bondFile: string) (didFile: string) (privateKeyFile: string) =
+    // Parse bond file
+    // Parse did document, this is the DID document of the person signing
+    //          it must match either the company or contributor DID of the bond
+    // Parse private key file
+    // Create RSA with private key
+    // Call SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string)
+    // Write updated json bond
+
+    use bondTR = System.IO.File.OpenText(bondFile)
+    let bondJsonObject = 
+        match ReadJson bondTR with
+        | JsonValue.JsonObject(o) -> o
+        | _ -> failwith "bond must be a json object."
+    bondTR.Close()
+
+    // get the company did of the bond
+    let companyDID = 
+        match bondJsonObject |> Array.tryPick (fun (n, v) -> if n = "company" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get company DID from bond."
+
+    // get the contributor did of the bond
+    let contributorDID = 
+        match bondJsonObject |> Array.tryPick (fun (n, v) -> if n = "contributor" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get contributor DID from bond."
+
+    use didTR = System.IO.File.OpenText(didFile)
+    let didJsonObject = 
+        match ReadJson didTR with
+        | JsonValue.JsonObject(o) -> o
+        | _ -> failwith "did document must be json object."
+
+    // get the signing did from the did document "id" property
+    let signingDID = 
+        match didJsonObject |> Array.tryPick (fun (n, v) -> if n = "id" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get id from did document."
+
+    // Validate, the id of the DID document must match the DID of either the company or the contributor
+    if not(signingDID = companyDID || signingDID = contributorDID) then
+        failwith "signing DID must match one of either the bond company or contributor DIDs."
+
+    // get the keyType, controller and public key from the did document
+    let authenticationObject = 
+        match didJsonObject |> Array.tryPick (fun (n, v) -> if n = "authentication" then Some(v) else None) with
+        | Some(JsonValue.JsonObject(o)) -> o
+        | _ -> failwith "unable to get 'authentication' property from did document."
+
+    let keyType =
+           match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "type" then Some(v) else None) with
+           | Some(JsonValue.JsonString(s)) -> s
+           | _ -> failwith "unable to get 'publicKeyPem' property from did document."
+
+    if keyType <> "RsaVerificationKey2018" then
+        failwith "key type must be 'RsaVerificationKey2018'."
+
+    let controllerDID =
+        match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "controller" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get 'controller' property from did document."
+
+    // Validate, the controller DID must match the signing DID
+    if not(signingDID = controllerDID) then
+        failwith "the signing DID must match the controller DID."
+
+    let publicKeyPem =
+           match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "publicKeyPem" then Some(v) else None) with
+           | Some(JsonValue.JsonString(s)) -> s
+           | _ -> failwith "unable to get 'publicKeyPem' property from did document."
+
+    let (_, pubKeyString) = ParsePEMString publicKeyPem
+    let pubKeyBytes = System.Convert.FromBase64String(pubKeyString)
+
+    let pemString = System.IO.File.ReadAllText(privateKeyFile)
+    let (_, keyString) = ParsePEMString pemString
+
+    let key = CngKey.Import(System.Convert.FromBase64String(keyString), CngKeyBlobFormat.GenericPrivateBlob)
+
+    // public key in the did document must match the key derived from the private key
+    if pubKeyBytes <> key.Export(CngKeyBlobFormat.GenericPublicBlob) then
+        failwith "Public key does not match public key in did document."
     
-    let jsonContributionBond2 = jsonContributionBond1.Replace("[ ]", jsonPayments)
-    let dataContributionBond2 = utf8.GetBytes(jsonContributionBond2)
+    use rsa = new RSACng(key)
+    // Call SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string)
+    let signedBondJson = SignJsonEmbedded rsa (JsonValue.JsonObject(bondJsonObject)) signingDID
 
-    printfn "%s" jsonContributionBond2
+    // Write updated json bond
+    use bondTW = System.IO.File.CreateText(bondFile)
+    WriteJson signedBondJson bondTW
+    bondTW.Flush()
+    bondTW.Close()
 
-    let signatureCompany2 = dsaCompany.SignData(dataContributionBond2)
-    let signatureContributor2 = dsaContributor.SignData(dataContributionBond2)
+[<EntryPoint>]
+let main argv = 
+    Internal.Utilities.Text.Parsing.Flags.debug <- false
 
+    let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
-    let jsonPaymentsSignature = """
-        [
-            { 
-                "company": "COMPANY_SIGNATURE"
-                "contributor": "CONTRIBUTOR_SIGNATURE",
-            }
-        ]
-    """
+    // Create a company DID
+    let companyDID = CreateIdentityDID(dataDir)
 
-    let jsonPaymentsSignature = jsonPaymentsSignature.Replace("COMPANY_SIGNATURE", System.Convert.ToBase64String(signatureCompany2))
-    let jsonPaymentsSignature = jsonPaymentsSignature.Replace("CONTRIBUTOR_SIGNATURE", System.Convert.ToBase64String(signatureContributor2))
+    // Create a contributor DID
+    let contributorDID = CreateIdentityDID(dataDir)
 
-    let jsonSignature2 = jsonSignature1.Replace("[ ]", jsonPaymentsSignature)
+    // Create a bond
+    let bondDID = CreateBond 
+                        dataDir                 // (path: System.IO.DirectoryInfo)
+                        "..\\..\\..\\README.md" // (terms_file: string) 
+                        companyDID              // (company_did: string) 
+                        contributorDID          // (contributor_did: string) 
+                        (decimal(100.00))       // (amount: decimal)
+                        (decimal(0.25))         // (rate: decimal)
+                        (decimal(1000.00))      // (max: decimal)
 
-    printfn "%s" jsonSignature2
-(*
-    use ecsdKey = new ECDsaCng(CngKey.Import(pubkeyCompany, CngKeyBlobFormat.EccPublicBlob))
-    if (ecsdKey.VerifyData(data, signature)) then
-        printfn "Data is good"
-    else
-        printfn "Data is bad"
- *)  
+    let bondFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName bondDID) + ".json")
+    let companyPemFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName companyDID)  + ".pem")
+    let companyDidFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName companyDID)  + ".json")
+    let contributorPemFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName contributorDID) + ".pem")
+    let contributorDidFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName contributorDID) + ".json")
+
+    // company signs the bond
+    SignBond bondFile companyDidFile companyPemFile
+
+    // contributor signs the bond
+    SignBond bondFile contributorDidFile contributorPemFile
     
     0 // return an integer exit code
 
