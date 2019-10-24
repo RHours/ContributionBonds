@@ -212,9 +212,9 @@ let CreateBond  (path: System.IO.DirectoryInfo)
                 ("company", JsonValue.JsonString(company_did));
                 ("contributor", JsonValue.JsonString(contributor_did));
                 ("created", JsonValue.JsonString(createdString));
-                ("amount", JsonValue.JsonString(amount.ToString()));
-                ("interest-rate", JsonValue.JsonString(rate.ToString()));
-                ("max", JsonValue.JsonString(max.ToString()));
+                ("amount", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(amount))));
+                ("interest-rate", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(rate))));
+                ("max", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(max))));
                 ("unit", JsonValue.JsonString("USD"));
                 ("payments", JsonValue.JsonArray([||]));
             |]
@@ -227,6 +227,165 @@ let CreateBond  (path: System.IO.DirectoryInfo)
 
     // Return the bond DID string
     bondDidString
+
+let internal GetBondLastBalance (bondJson: JsonValue) =
+    // last balance is either the value of the balance property of the last payment element
+    // or the bond.amount value if there are no payments
+    match bondJson with
+    | JsonValue.JsonObject(bondObj) ->
+        // get the payments array
+        match bondObj |> Array.tryPick ( fun (n, v) -> if n = "payments" then Some(v) else None) with
+        | Some(JsonValue.JsonArray(paymentsArray)) ->
+            match Array.length paymentsArray with
+            | 0 ->
+                // last balance is the bond.amount
+                let bondAmount = 
+                    match bondObj |> Array.tryPick ( fun (n, v) -> if n = "amount" then Some(v) else None) with
+                    | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(amount))) -> decimal(amount)
+                    | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(amount))) -> decimal(amount)
+                    | _ -> failwith "unable to get bond amount."
+
+                // last balance date is bond.created
+                let bondCreated = 
+                    match bondObj |> Array.tryPick ( fun (n, v) -> if n = "created" then Some(v) else None) with
+                    | Some(JsonValue.JsonString(s)) -> DateTime.ParseExact(s, "s", System.Globalization.CultureInfo.InvariantCulture)
+                    | _ -> failwith "unable to get bond created."
+
+                (bondAmount, bondCreated)
+            | length ->
+                // last balance is the payment.balance 
+                // Assumeing here that validation of the bond will ensure that the payments are sorted by date
+                match paymentsArray.[length - 1] with
+                | JsonValue.JsonObject(paymentObj) ->
+                    let paymentBalance = 
+                        match paymentObj |> Array.tryPick ( fun (n, v) -> if n = "balance" then Some(v) else None) with
+                        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(balance))) -> decimal(balance)
+                        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(balance))) -> decimal(balance)
+                        | _ -> failwith "unable to get payment balance."
+                    let paymentDate = 
+                        match paymentObj |> Array.tryPick ( fun (n, v) -> if n = "date" then Some(v) else None) with
+                        | Some(JsonValue.JsonString(s)) -> DateTime.ParseExact(s, "s", System.Globalization.CultureInfo.InvariantCulture)
+                        | _ -> failwith "unable to get payment date."
+
+                    (paymentBalance, paymentDate)
+                | _ -> failwith "payment must be an object."
+        | _ -> failwith "couldn't get bond payments array."
+        
+    | _ -> failwith "bond must be an object."
+
+let CalculateInterest (pv: decimal) (rate: decimal) (days: int) : decimal =
+    // rate is expressed as an annual rate
+    // compunding is continuous
+    
+    // daily rate to yearly rate divided by 365
+    let dailyRate = rate/(decimal(365))
+
+    let fv = System.Math.Round(pv * (decimal((exp (float((dailyRate * (decimal(days)))))))), 2)
+    fv - pv
+
+let MakeBondPayment (bondFile: string) (amount: decimal) =
+    // get the previous balance
+    // calculate the interest
+    // create the payment object
+    // add it to the payments array
+    // total payments is bounded by bond.max
+
+    use bondTR = System.IO.File.OpenText(bondFile)
+    let bondJson = ReadJson bondTR
+    bondTR.Close()
+
+    let bondJsonObj = 
+        match bondJson with
+        | JsonValue.JsonObject(o) -> o
+        | _ -> failwith "bond must be a json object."
+    
+    let (lastBalance, lastBalanceDate) = GetBondLastBalance bondJson
+
+    // get the of the bond interest rate
+    let rate = 
+        match bondJsonObj |> Array.tryPick ( fun (n, v) -> if n = "interest-rate" then Some(v) else None) with
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
+        | _ -> failwith "couldn't get bond interest rate."
+
+    // get the of the bond max payments
+    let maxPayments = 
+        match bondJsonObj |> Array.tryPick ( fun (n, v) -> if n = "max" then Some(v) else None) with
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
+        | _ -> failwith "couldn't get bond max payments."
+
+    let paymentsIndex = bondJsonObj |> Array.findIndex ( fun (n, v) -> n = "payments")
+
+    // get total bond payments
+    let totalPayments = 
+        match bondJsonObj.[paymentsIndex] with
+        | ("payments", JsonValue.JsonArray(paymentsArray)) ->
+            paymentsArray |> Array.sumBy 
+                (
+                    fun p -> 
+                        match p with 
+                        | JsonValue.JsonObject(pObj) ->
+                            match pObj |> Array.tryPick ( fun (n, v) -> if n = "amount" then Some(v) else None) with
+                            | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
+                            | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
+                            | _ -> failwith "Can't access payment amount."
+                        | _ -> failwith "payment element must be an object."
+                )
+        | _ -> failwith "unable to access bond.payments array."        
+        
+    let now = DateTime.UtcNow
+    let days = int((now - lastBalanceDate).TotalDays)
+    let interest = CalculateInterest lastBalance rate days
+    let adjustedAmount = 
+        // don't pay more than bond.max allows, cap amount to pay
+        Math.Min(amount, maxPayments - totalPayments)
+
+    // new balance cannot be more than max - totalPayments
+    let balance = 
+        System.Math.Min(
+            maxPayments - (totalPayments + adjustedAmount), // bond.max - new total payments
+            System.Math.Max(
+                lastBalance + interest - adjustedAmount,
+                decimal(0)
+            )
+        )
+
+    // amount in minus the amount of this payment
+    let remainder = amount - (lastBalance - balance)
+
+    let paymentJson = 
+        JsonValue.JsonObject (
+            [|
+                ("date", JsonValue.JsonString(DateTimeToString now));
+                ("interest", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(interest))));
+                ("amount", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(adjustedAmount))));
+                ("balance", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(balance))));
+            |]
+        )
+    (*
+        {
+            "date": "UTC payment date, format is yyyy-MM-ddThh:mm:ss",
+            "interest": 16.52,
+            "amount": 40.00,
+            "balance": 76.52
+        }
+    *)
+
+    // append this payments object to the payments array
+    match bondJsonObj.[paymentsIndex] with
+    | ("payments", JsonValue.JsonArray(paymentsArray)) ->
+        bondJsonObj.[paymentsIndex] <- ("payments", JsonValue.JsonArray(Array.append paymentsArray [| paymentJson; |]))
+    | _ -> failwith "Unable to update bond payments array."
+
+    // Write updated json bond
+    use bondTW = System.IO.File.CreateText(bondFile)
+    WriteJson bondJson bondTW
+    bondTW.Flush()
+    bondTW.Close()
+
+    // return the remainder
+    remainder
 
 let SignBond (bondFile: string) (didFile: string) (privateKeyFile: string) =
     // Parse bond file
@@ -521,7 +680,7 @@ let main argv =
 
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
-    let mode = 2
+    let mode = 3
 
     match mode with
     | 1 -> 
@@ -553,11 +712,17 @@ let main argv =
         // contributor signs the bond
         SignBond bondFile contributorDidFile contributorPemFile
     | 2 -> 
-        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_4FWQibuQKrWVnF1A2e23HSotLbDw.json")
+        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_3eUrpbJR7pKnNpQK6S2C34FDRYSZ.json")
     
         // Verify the bond
         let result = VerifyBond dataDir bondFile
         printf "%A" result
+    | 3 ->
+        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_3eUrpbJR7pKnNpQK6S2C34FDRYSZ.json")
+        let remainder = MakeBondPayment bondFile (decimal(20))
+        printf "Remainder = %f" remainder
+
+    | _ -> failwith "bad mode"
 
     0 // return an integer exit code
 

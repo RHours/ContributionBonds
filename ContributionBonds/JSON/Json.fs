@@ -126,6 +126,8 @@ let rec private WriteCanonicalJson (json: Json.Parser.JsonValue) (tw: TextWriter
     | JsonValue.JsonString(s) -> 
         tw.Write(s.Replace("\\", "\\\\"))
     | JsonValue.JsonNumber(n) ->
+        // TODO: Bug, need to represent numbers with no decimal portion as integer always
+        //          2.00 = 2, must represent as 2
         match n with
         | JsonNumber.JsonInteger(i) -> 
             tw.Write(Convert.ToString(i))
