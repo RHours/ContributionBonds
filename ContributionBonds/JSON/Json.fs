@@ -180,7 +180,9 @@ let rec private WriteFormattedJson (json: Json.Parser.JsonValue) (tw: TextWriter
                 WriteFormattedJson (elements.[i]) tw (indent + 1)
                 tw.WriteLine(',')
 
+            WriteIndent tw (indent + 1)
             WriteFormattedJson (elements.[length - 1]) tw (indent + 1)
+            tw.WriteLine()
             WriteIndent tw indent
             tw.Write(']')
 
