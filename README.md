@@ -119,7 +119,11 @@ https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs
 
   * The signature will operate over the bytes which represent a UTF-8 encoding of the text of a JSON document.
   * All whitespace will be removed (which is not part of a string)
-  * String character escapes like \t, \r, \n, will be represented as their single character equivilent, e.g. \t will be the single tab character, 0x10. This is also true of hex escapes. \u0d25 will be represented as its single character. The one exception is the backslash character '\'. It must be escaped to two characters "\\" in the UTF-8 serialization.
+  * String characters will be normalized using these rules
+  ** Characters escapes will be written as the two character escape of '\' + one of ('"' '\' 'b' 'f' 'n' 'r' 't')
+  ** The forward slash character '/' will be written as one character
+  ** All other valid JSON characters are written as one character
+  * Numbers with no decimal component will be written as integers even if internally modeled as floats.
   * The lable names of object properties are sorted based on their unicode value. Duplicates are not allowed in JSON so there's no issue of picking between duplicates.
   * The signing process will ignore a final object property called "proof". The "proof" label must be the last one in the root object. Only objects can be signed. There's no support for signature chains in this sceme but proof sets are supported.
   * The signing process will update an existing "proof" label or create a new one. A "proof" property may contain either a single object, or an array of objects. The "proof" objects structure is defined  at https://w3c-dvcg.github.io/ld-signatures.

@@ -88,6 +88,22 @@ let FromBase58WithCheckSum (s: string) =
     | Some(_) ->
         dataWithoutCheckSum
 
+let JsonEscape (s:string) : string = 
+    let sb = System.Text.StringBuilder()
+
+    for i = 0 to s.Length - 1 do
+        match s.[i] with
+        | '\"' -> sb.Append("\\\"") |> ignore
+        | '\\' -> sb.Append("\\\\") |> ignore
+        | '\b' -> sb.Append("\\\b") |> ignore
+        | '\f' -> sb.Append("\\\f") |> ignore
+        | '\n' -> sb.Append("\\\n") |> ignore
+        | '\r' -> sb.Append("\\\r") |> ignore
+        | '\t' -> sb.Append("\\\t") |> ignore
+        | c -> sb.Append(c) |> ignore
+
+    sb.ToString()
+
 let rec private WriteCanonicalJson (json: Json.Parser.JsonValue) (tw: TextWriter) (isRoot: bool) =
     match json with
     | JsonValue.JsonObject(o) -> 
@@ -124,15 +140,16 @@ let rec private WriteCanonicalJson (json: Json.Parser.JsonValue) (tw: TextWriter
             WriteCanonicalJson (a.[a.Length - 1]) tw false
         tw.Write(']')
     | JsonValue.JsonString(s) -> 
-        tw.Write(s.Replace("\\", "\\\\"))
+        tw.Write(JsonEscape s)
     | JsonValue.JsonNumber(n) ->
-        // TODO: Bug, need to represent numbers with no decimal portion as integer always
-        //          2.00 = 2, must represent as 2
         match n with
         | JsonNumber.JsonInteger(i) -> 
             tw.Write(Convert.ToString(i))
         | JsonNumber.JsonFloat(f) -> 
-            tw.Write(Convert.ToString(f))
+            if (float(int(f))) = f then
+                tw.Write(Convert.ToString(int(f)))
+            else
+                tw.Write(Convert.ToString(f))
     | JsonValue.JsonBool(b) -> 
         if b then tw.Write("true") else tw.Write("false")
     | JsonValue.JsonNull -> 
@@ -190,14 +207,17 @@ let rec private WriteFormattedJson (json: Json.Parser.JsonValue) (tw: TextWriter
 
     | JsonValue.JsonString(s) -> 
         tw.Write("\"")
-        tw.Write(s.Replace("\\", "\\\\").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\"", "\\"))
+        tw.Write(JsonEscape s)
         tw.Write("\"")
     | JsonValue.JsonNumber(n) ->
         match n with
         | JsonNumber.JsonInteger(i) -> 
             tw.Write(Convert.ToString(i))
         | JsonNumber.JsonFloat(f) -> 
-            tw.Write(Convert.ToString(f))
+            if (float(int(f))) = f then
+                tw.Write(Convert.ToString(int(f)))
+            else
+                tw.Write(Convert.ToString(f))
     | JsonValue.JsonBool(b) -> 
         if b then tw.Write("true") else tw.Write("false")
     | JsonValue.JsonNull -> 
