@@ -94,6 +94,7 @@ https://w3c-dvcg.github.io/ld-signatures/
 https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs1signatureformatter?view=netframework-4.8
 
 
+```javascript
 "proof": [{
     "type": "RsaSignature2018",
     "creator": "https://example.com/i/pat/keys/5",
@@ -107,6 +108,7 @@ https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs
     "nonce": "83jj4hd62j49gk38",
     "proofValue": "eyiOiJJ0eXAK...EjXkgFWFO"
   }]
+```
 
   ## Canonicalization of JSON data
   It's possible for mutlitple JSON documents to have same data but different sequence of bytes. For example, adding extra whitespace to one document would change the sequence of bytes but still represent the same data. This causes a problem when cryptographically signing JSON documents. The signing occurs on bytes not the meaning of the data. 
@@ -124,9 +126,101 @@ https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs
   ** The forward slash character '/' will be written as one character
   ** All other valid JSON characters are written as one character
   * Numbers with no decimal component will be written as integers even if internally modeled as floats.
-  * The lable names of object properties are sorted based on their unicode value. Duplicates are not allowed in JSON so there's no issue of picking between duplicates.
+  * The lable names of object properties are sorted based on their unicode value. Duplicates are not allowed.
   * The signing process will ignore a final object property called "proof". The "proof" label must be the last one in the root object. Only objects can be signed. There's no support for signature chains in this sceme but proof sets are supported.
   * The signing process will update an existing "proof" label or create a new one. A "proof" property may contain either a single object, or an array of objects. The "proof" objects structure is defined  at https://w3c-dvcg.github.io/ld-signatures.
   * The signature bytes are prepended with a nonce. The nonce is given in the "proof" object.
+
+  # Reference Implementation
+  ## JsonValue Discriminated Union
+  A low level, JSON model. 
+  * no links from child and parent
+  * limited ability to modify, object members and array elements may be replaced but not added or deleted
+```fsharp
+type JsonValue = 
+    | JsonObject    of (string * JsonValue) array
+    | JsonArray     of JsonValue array
+    | JsonString    of string
+    | JsonNumber    of JsonNumber
+    | JsonBool      of bool
+    | JsonNull
+
+and JsonNumber =
+    | JsonInteger   of int
+    | JsonFloat     of float
+```
+
+## JSON-LD Object Model
+A class hierachy which supports the features of linked data in JSON. 
+* typed access to values (e.g., strings<->dates, string<->identifiers)
+* patterned on but not a complete implementation of JSON-LD at https://www.w3.org/TR/json-ld/.
+* feature set limited to those required to support the RHours data model
+
+## Decentralized Identifier (DID) Object Model
+Suports DIDs and DID URLs
+* feature set limited to those required to support "rhours" DIDs
+* provides key managment
+* assumes storage on the file system, though it would be good to abstract this
+
+## RHours Contribution Bond Accounting
+An API for creating and managing the accounts of a project using the RHours ownership model.
+* Create and manage DIDs for contributors
+* Create and manage contribution bonds
+** Record payments
+** Record signatures by contributors and the project representative
+** Validate bonds
+* Generate accounting reports
+
+### RHoursProject Class
+Used to manage the accounting of contribution bonds for contributors to an RHours project.
+
+```fhsarp
+// Constructors
+RHoursProject(storage: RHoursProjectStorage)
+    // Initializes the storage
+    // Creates an identity which represents the company
+    // If these things exist it loads them into the current instance.
+
+// Methods
+CreateContributor() : RHoursContributor
+    // Creates an RHours DID URL and DID Document for the contributor
+    // Wraps a DID URL and DID Document
+
+CreateContributionBond(contributor, terms) : RHoursContributionBond
+```
+
+### RHoursProjectStorage Class
+Abstract class which provides reading and writing of data related to an RHoursProject.
+```fhsarp
+// Constructors
+RHoursProjectStorage()
+    // IsInitalized is false at construction
+
+// Methods
+abstract Initialize()
+    // Implementors set IsInitialized to true
+
+abstract ReadCompanyId() : RHoursIdentifier option
+abstract SaveCompanyId(id: RHoursIdentifier) : unit
+
+abstract ReadContributor(id: RHoursIdentifier) : RHoursContributor option
+abstract SaveContributor(contributor: RHoursContributor) : unit
+
+abstract ReadBond(id: RHoursIdentifier) : RHoursContributionBond option
+abstract SaveBond(bond: RHoursContributionBond) : unit
+
+```
+
+#### GitHubProjectStorage Class
+Implementation of an RHoursProjectStorage class which uses the local file system to store data.
+
+### KeyManagement Class
+Abstract class which provides reading and writing of private keys.
+
+#### FileSystemKeyManagement Class
+Implementation of a KeyManagement which uses the local file system to store private keys.
+
+#### AwsKeyManagementContext
+Implementation of a KeyManagement which uses AWS KMS. Won't be implemented immmediately.
 
 
