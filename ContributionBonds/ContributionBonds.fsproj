@@ -66,6 +66,7 @@
     <Compile Include="JSON\JsonParser.fs" />
     <Compile Include="JSON\JsonLexer.fs" />
     <Compile Include="JSON\Json.fs" />
+    <Compile Include="ConsoleUI.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

@@ -129,4 +129,100 @@ https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsapkcs
   * The signing process will update an existing "proof" label or create a new one. A "proof" property may contain either a single object, or an array of objects. The "proof" objects structure is defined  at https://w3c-dvcg.github.io/ld-signatures.
   * The signature bytes are prepended with a nonce. The nonce is given in the "proof" object.
 
+# Command Line User Interface
+
+* Initialize a project
+** Creates the directory structure to store the public portion of identites and bonds.
+** Creates a company identity
+** Private information is written to the screen
+** If these things exist already initialization succeeds
+* Create Contributor Identity
+** Generates the DID string and DID document for a contributor identity
+** Private information is written to the screen
+* Create a Bond
+** The data items needed to create a bond are given
+** The bond will be unsigned and will have no payments recorded.
+** Bonds are identified by a DID
+* Sign Bond
+** Give DID string of contributor or company
+** Give path to private key
+** Updates the bond with the signature
+* Record Payment
+** Given the DID of a bond
+** Given an amount of the payment
+** Updates the bond with the payment information, bond will need to be signed again by both company and contributor.
+* Verify Bond
+** Verifies the signatures of a bond
+** Verifies schema compliance
+
+
+## Command Syntax
+General form
+```
+cb command sub-command --param=value --param=value ...
+
+    command     sub-command     parameters      value
+    -------     -----------     ----------      -----
+    company     init[ialize]    --root          Path to root folder of the company project.
+                                                By the convention, the same as the Git root.
+                                                Optional - the current directory is used
+                                                           if it contains a .git folder.
+
+        Action: This command creates the folders used to hold the contributors and bonds. It
+                also creates an indentity which represents the entity which owns the project, called
+                the 'company'.
+                If the folders and company identity already exist, the command succeeds.
+
+        Output: The private PEM information for the company identity. This
+                value must be saved in a secure location and kept private. Do not lose this information, 
+                without it the ownership of the company can not be proved.
+
+    command     sub-command     parameters      value
+    -------     -----------     ----------      -----
+    contributor create          --root          ...
+
+        Action: Creates DID string, DID Document, and private key for a contributor. The public 
+                information is written to the correct folder in the project to be committed.
+
+        Output: The private PEM information for the contributor identity. This
+                value must be saved to a secure location and kept private. Do not lose this information,
+                without it the ownership of the contributor identity cannot be proved.
+
+    command     sub-command     parameters      value
+    -------     -----------     ----------      -----
+    bond        create          --terms         A path to a file containing the written terms of the bond agreement.
+                                --contributor   DID string of the contributor the bond is being issued to.
+                                --amount        The dollar amount of the bond.
+                                --rate          The interest rate, expressed as a decimal, e.g., 0.25 is 25%.
+                                --max           The maximum total payments for the bond.
+
+        Action: Creates a new bond file with the information provided. The bond is not signed and there are
+                no payments recorded.
+
+        Output: Success or failure messages.
+
+                sign            --bond          The DID string for the bond.
+                                --signatory     The DID string of the identity signing the bond. This
+                                                needs to be either the contributor or the company.
+
+        Action: The command will wait for a private key PEM string to be entered into the standard input. Then
+                it will sign and update the bond file with the new signature.
+
+        Output: Success or failure messages.
+
+                payment         --bond          The DID string for the bond.
+                                --amount        The amount of payment to apply to the bond. This number may be
+                                                adjusted downward to avoid overpayment.
+
+        Action: Calculates the interest amount since the last payment and updates the bond with 
+                a new payment record. A new balance is calculated and stored with the new payment.
+
+        Ouput:  A summary of the successful payment or error messages.
+
+               verify           --bond          The DID string for the bond.
+
+        Action: The bond signatures are verified.
+
+        Output: The latest dates of the company and contributor signatures, or error messages.
+```
 
