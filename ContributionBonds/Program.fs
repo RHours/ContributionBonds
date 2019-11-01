@@ -674,13 +674,16 @@ let VerifyBond (path: System.IO.DirectoryInfo) (bondFile: string) : (DateTime * 
     | _ ->
         None
 
+
+        // need hash of public key of identities in bond
+
 [<EntryPoint>]
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
 
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
-    let mode = 3
+    let mode = 2
 
     match mode with
     | 1 -> 
@@ -712,13 +715,13 @@ let main argv =
         // contributor signs the bond
         SignBond bondFile contributorDidFile contributorPemFile
     | 2 -> 
-        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_3eUrpbJR7pKnNpQK6S2C34FDRYSZ.json")
+        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_2wG71RimEzFQHoKNRTRsRSakcX3Q.json")
     
         // Verify the bond
         let result = VerifyBond dataDir bondFile
         printf "%A" result
     | 3 ->
-        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_3eUrpbJR7pKnNpQK6S2C34FDRYSZ.json")
+        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_2wG71RimEzFQHoKNRTRsRSakcX3Q.json")
         let remainder = MakeBondPayment bondFile (decimal(20))
         printf "Remainder = %f" remainder
 
