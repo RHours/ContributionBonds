@@ -95,11 +95,11 @@ let JsonEscape (s:string) : string =
         match s.[i] with
         | '\"' -> sb.Append("\\\"") |> ignore
         | '\\' -> sb.Append("\\\\") |> ignore
-        | '\b' -> sb.Append("\\\b") |> ignore
-        | '\f' -> sb.Append("\\\f") |> ignore
-        | '\n' -> sb.Append("\\\n") |> ignore
-        | '\r' -> sb.Append("\\\r") |> ignore
-        | '\t' -> sb.Append("\\\t") |> ignore
+        | '\b' -> sb.Append("\\b") |> ignore
+        | '\f' -> sb.Append("\\f") |> ignore
+        | '\n' -> sb.Append("\\n") |> ignore
+        | '\r' -> sb.Append("\\r") |> ignore
+        | '\t' -> sb.Append("\\t") |> ignore
         | c -> sb.Append(c) |> ignore
 
     sb.ToString()
