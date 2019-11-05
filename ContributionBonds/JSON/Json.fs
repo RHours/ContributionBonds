@@ -88,6 +88,28 @@ let FromBase58WithCheckSum (s: string) =
     | Some(_) ->
         dataWithoutCheckSum
 
+let DateTimeToString (date: DateTime) =
+    date.ToString("yyyy-MM-ddThh:mm:ss")
+
+let MakePEMString (data: byte array) (label: string) =
+    // label example: PRIVATE KEY
+    let sb = System.Text.StringBuilder()
+    sb.AppendLine(sprintf "-----BEGIN %s-----" label)
+        .AppendLine(System.Convert.ToBase64String(data))
+        .AppendLine(sprintf "-----END %s-----" label)
+        .ToString()
+
+let ParsePEMString (pem: string) =
+    let pemRegex = System.Text.RegularExpressions.Regex("""[\-]+BEGIN (?<label>[^\-]+)[\-]+\r?\n?(?<key>[A-Za-z0-9\+\/\=]*)\r?\n?[\-]+END [^\-]+[\-]+\r?\n?""")
+    let result = pemRegex.Match(pem)
+    if result.Success then
+        (result.Groups.[1].Value, result.Groups.[2].Value)
+    else
+        failwith "could not parse pem"
+
+        
+let DIDFileName (did: string) = did.Replace(":", "_")
+        
 let JsonEscape (s:string) : string = 
     let sb = System.Text.StringBuilder()
 

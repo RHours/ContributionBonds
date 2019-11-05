@@ -1,102 +1,9 @@
-﻿(*
-To do: 
-    Generate ID/Key pair
-            cb --id
-
-    Sign a revenue bond
-            cb --sign ( --company=key | --contributor=key )
-
-    Make a payment to a revenue bond
-            cb --pay --amount=999.99 <bond-file>
-
-    Verify revenue bond
-            cb --verify <bond-file>
-
-    Canonical format for JSON signing
-        use my json parser
-        sort the labels
-        use json-ld signing?
-
-*)
-
+﻿
 open System
 open System.Security.Cryptography
-open System.Text
 open Json.Parser
 open Json.Api
-
-
-let (|CommandCreateIdentifier|_|) (argv:string[]) =
-    // Generate ID/Key pair
-    //      cb --id
-    if argv.Length = 2 then
-        match argv.[1] with
-        | "--id" | "-id" | "id" ->
-            Some()
-        | _ ->
-            None
-    else
-        None
-
-let (|CommandSignBond|_|) (argv:string[]) =
-    // Sign a revenue bond
-    //      cb --sign ( --company | --contributor ) --bond=bond-file
-    if argv.Length = 4 then
-        match argv.[1] with
-        | "--sign" | "-sign" | "sign"->
-            let mutable companyIsSigning : bool = false
-            let mutable contributorIsSigning : bool = false
-            let mutable bondFile : string option = None
-
-            for i = 2 to 3 do
-                match argv.[i] with
-                | "--company" ->
-                    companyIsSigning <- true
-                | "--contributor" ->
-                    contributorIsSigning <- true
-                | "--bond=" ->
-                    let bondFI = System.IO.FileInfo(argv.[i].Substring(7))
-                    bondFile <- 
-                        if bondFI.Exists then
-                            Some(bondFI.FullName)
-                        else
-                            None
-                | _ ->
-                    ()
-
-            if (companyIsSigning || contributorIsSigning) && 
-                not(companyIsSigning && contributorIsSigning) && 
-                bondFile.IsSome then
-
-                Some(None, companyIsSigning, contributorIsSigning, bondFile)
-            else
-                Some(Some("error"), false, false, None)
-        | _ ->
-            None
-    else
-        None
-
-
-let DateTimeToString (date: DateTime) =
-    date.ToString("yyyy-MM-ddThh:mm:ss")
-
-let MakePEMString (data: byte array) (label: string) =
-    // label example: PRIVATE KEY
-    let sb = System.Text.StringBuilder()
-    sb.AppendLine(sprintf "-----BEGIN %s-----" label)
-        .AppendLine(System.Convert.ToBase64String(data))
-        .AppendLine(sprintf "-----END %s-----" label)
-        .ToString()
-
-let ParsePEMString (pem: string) =
-    let pemRegex = System.Text.RegularExpressions.Regex("""[\-]+BEGIN (?<label>[^\-]+)[\-]+\r?\n?(?<key>[A-Za-z0-9\+\/\=]*)\r?\n?[\-]+END [^\-]+[\-]+\r?\n?""")
-    let result = pemRegex.Match(pem)
-    if result.Success then
-        (result.Groups.[1].Value, result.Groups.[2].Value)
-    else
-        failwith "could not parse pem"
-
-let DIDFileName (did: string) = did.Replace(":", "_")
+open ConsoleUI
 
 let CreateRhoursDID () = 
     use rng = RandomNumberGenerator.Create()
@@ -675,11 +582,140 @@ let VerifyBond (path: System.IO.DirectoryInfo) (bondFile: string) : (DateTime * 
         None
 
 
-        // need hash of public key of identities in bond
+// need hash of public key of identities in bond
+let NotImplementedEval = 
+    fun (bindings: Map<string, ArgumentBinding>) -> 
+        printfn "Command Not implemented"
+        CommandEvaluationResult.Success(1)
+
+let CompanyInitializeEval = NotImplementedEval
+let ContributorCreateEval = NotImplementedEval
+let BondCreateEval = NotImplementedEval
+let BondSignEval = NotImplementedEval
+let BondPaymentEval = NotImplementedEval
+let BondVerifyEval = NotImplementedEval
+
+let RootParamDefault = 
+    fun () -> 
+        let curdir = System.IO.DirectoryInfo(System.IO.Directory.GetCurrentDirectory())
+        match curdir.GetDirectories(".git") with
+        | [| _; |] -> 
+            ArgumentBinding.StringValue(curdir.FullName)
+        | _ -> 
+            ArgumentBinding.StringValue(null)
+
+let RootParam =
+    {
+        Name = "root";
+        ParamType = ParamType.ParamString;
+        Default = Some(RootParamDefault);        
+    }
+
+let CompanyInitializeCommand = 
+    CommandDefinition(
+        "company",
+        Some("initialize"),
+        [ RootParam; ],
+        None,
+        CompanyInitializeEval
+    )
+
+let ContributorCreateCommand = 
+    CommandDefinition(
+        "contributor",
+        Some("create"),
+        [ RootParam; ],
+        None,
+        ContributorCreateEval
+    )
+
+(*
+bond        create          
+    --terms         A path to a file containing the written terms of the bond agreement.
+    --contributor   DID string of the contributor the bond is being issued to.
+    --amount        The dollar amount of the bond.
+    --rate          The interest rate, expressed as a decimal, e.g., 0.25 is 25%.
+    --max           The maximum total payments for the bond.
+*)
+
+let BondTermsParam = { Name = "terms"; ParamType = ParamType.ParamString; Default = None; }
+let BondContrbutorParam = { Name = "contributor"; ParamType = ParamType.ParamString; Default = None; }
+let BondAmountParam = { Name = "amount"; ParamType = ParamType.ParamDecimal; Default = None; }
+let BondRateParam = { Name = "rate"; ParamType = ParamType.ParamDecimal; Default = None; }
+let BondMaxParam = { Name = "max"; ParamType = ParamType.ParamDecimal; Default = None; }
+
+
+let BondCreateCommand = 
+    CommandDefinition(
+        "bond",
+        Some("create"),
+        [ RootParam; BondTermsParam; BondContrbutorParam; BondAmountParam; BondRateParam; BondMaxParam; ],
+        None,
+        BondCreateEval
+    )
+
+(*
+bond        sign            --bond          The DID string for the bond.
+                            --signatory     The DID string of the identity signing the bond. This
+                                            needs to be either the contributor or the company.
+*)
+let BondIdParam = { Name = "bond"; ParamType = ParamType.ParamString; Default = None; }
+let BondSignatoryParam = { Name = "signatory"; ParamType = ParamType.ParamString; Default = None; }
+
+let BondSignCommand = 
+    CommandDefinition(
+        "bond",
+        Some("sign"),
+        [ RootParam; BondIdParam; BondSignatoryParam; ],
+        None,
+        BondSignEval
+    )
+
+(*
+bond        payment         --bond          The DID string for the bond.
+                            --amount        The amount of payment to apply to the bond. This number may be
+                                            adjusted downward to avoid overpayment.
+*)
+let BondPaymentCommand = 
+    CommandDefinition(
+        "bond",
+        Some("payment"),
+        [ RootParam; BondIdParam; BondAmountParam; ],
+        None,
+        BondPaymentEval
+    )
+
+(*
+bond       verify           --bond          The DID string for the bond.
+*)
+let BondVerifyCommand = 
+    CommandDefinition(
+        "bond",
+        Some("verify"),
+        [ RootParam; BondIdParam; ],
+        None,
+        BondVerifyEval
+    )
+
+let UICommands = 
+    [
+        CompanyInitializeCommand;
+        ContributorCreateCommand;
+        BondCreateCommand;
+        BondSignCommand;
+        BondPaymentCommand;
+        BondVerifyCommand
+    ]
 
 [<EntryPoint>]
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
+
+
+    let UIDef = UIDefinition (UICommands, (fun () -> printfn "help"))
+    let result = UIDef.ProcessCommands(argv)
+    printfn "Result %d" result
+
 
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
