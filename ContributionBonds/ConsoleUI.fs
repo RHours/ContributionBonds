@@ -26,7 +26,7 @@ type CommandDefinition (command: string,
                         subCommand: string option, 
                         paramDefs: ParamDefinition list, 
                         pemLabel: string option,
-                        eval: (Map<string, ArgumentBinding> -> CommandEvaluationResult)) =
+                        eval: (UIContext -> CommandEvaluationResult)) =
 
     let paramRegex = System.Text.RegularExpressions.Regex("-{1,2}([^=]*)=(.*)")
     let ParseParam (arg: string) : (string * string) option =
@@ -36,13 +36,13 @@ type CommandDefinition (command: string,
         else
             None
 
-    let rec BindParms (args: string array) (bindings: Map<string, ArgumentBinding>) (i: int) : Map<string, ArgumentBinding> =
+    let rec BindParms (context: UIContext) (args: string array) (i: int) =
         if i < args.Length then
             // parse the arg as a parameter (name=value)
             // look for a matching paramsDef
             match ParseParam args.[i] with
             | Some(n, v) -> 
-                match paramDefs |> List.tryPick (fun p -> if p.Name = n then Some(p) else None) with
+                match paramDefs |> List.tryPick (fun p -> if p.Name.ToLower() = n.ToLower() then Some(p) else None) with
                 | Some(p) ->
                     let thisBinding = 
                         match p.ParamType with
@@ -53,55 +53,50 @@ type CommandDefinition (command: string,
                         | ParamType.ParamBytes ->
                             ArgumentBinding.BytesValue(System.Convert.FromBase64String(v))
 
-                    let newBindings = 
-                        bindings |> Map.add (p.Name) (thisBinding)
+                    context.AddBinding (p.Name) thisBinding
 
-                    BindParms args newBindings (i+1)
+                    BindParms context args (i+1)
                 | None ->
                     // couldn't find a param with this name, throw exception
                     failwith (sprintf "Parameter not defined: %s" n)
             | None ->
                 failwith (sprintf "Invalid argument: %s" args.[i])
-        else
-            bindings
-
-    let rec BindDefaults (bindings: Map<string, ArgumentBinding>) (pdl: ParamDefinition list) : Map<string, ArgumentBinding> =
+        
+    let rec BindDefaults (context: UIContext) (pdl: ParamDefinition list) =
         match pdl with
         | [ ] -> 
-            bindings
+            ()
         | h :: t ->
             // if there is NOT a binding for this param, run the default function
             // it's an error if there's no value for a param
-            match (bindings |> Map.containsKey (h.Name)) with
-            | false ->
+            match context.TryFindBinding (h.Name) with
+            | None ->
                 match h.Default with
                 | Some(df) ->
                     let defaultBinding = df()
-                    let newBindings = bindings |> Map.add (h.Name) defaultBinding
-                    BindDefaults newBindings t
+                    context.AddBinding (h.Name) defaultBinding
+                    BindDefaults context t
                 | None ->
                     failwith (sprintf "Value required for parameter: %s" (h.Name))
-            | true ->
-                BindDefaults bindings t
+            | Some(_) ->
+                BindDefaults context t
 
-    member this.Evaluate(args: string array) : CommandEvaluationResult =
+    member this.Evaluate(context: UIContext, args: string array) : CommandEvaluationResult =
         // return NotApplicable if command not equal arg 1
         // return NotApplicable if subCommand not equal to arg 2 - when subCommand is Some
         // bind the pairs to remaining args
         // perform the readline for any PEMPrompt
         // call the eval function
 
-        let mutable bindings = Map.empty<string, ArgumentBinding>
-
         let paramStartIndex = 
             if args.Length > 0 then
                 if command.StartsWith(args.[0]) then
-                    bindings <- bindings |> Map.add "command" (ArgumentBinding.StringValue(command))
+                    context.AddBinding "Command" (ArgumentBinding.StringValue(command))
 
                     match subCommand with
                     | Some(c) -> 
                         if args.Length > 1 && c.StartsWith(args.[1]) then
-                            bindings <- bindings |> Map.add "subCommand" (ArgumentBinding.StringValue(c))
+                            context.AddBinding "SubCommand" (ArgumentBinding.StringValue(c))
                             2
                         else
                             -1
@@ -115,28 +110,36 @@ type CommandDefinition (command: string,
         if paramStartIndex = -1 then
             CommandEvaluationResult.NotApplicable
         else
-            bindings <- BindParms args bindings paramStartIndex
-            bindings <- BindDefaults bindings paramDefs
+            BindParms context args paramStartIndex
+            BindDefaults context paramDefs
 
             match pemLabel with
             | Some(label) ->
                 printfn "Entery PEM for %s" label
                 let pemText = System.Console.ReadLine()
                 let (_ , pemString) = Json.Api.ParsePEMString pemText
-                bindings <- bindings |> Map.add "pem" (ArgumentBinding.BytesValue(System.Convert.FromBase64String(pemString)))
+                context.AddBinding "PEM" (ArgumentBinding.BytesValue(System.Convert.FromBase64String(pemString)))
             | None -> ()
 
             // call the eval function
-            eval bindings
+            eval context
 
-type UIDefinition (cmdDefs: CommandDefinition list, help: unit -> unit) =
+and UIContext (cmdDefs: CommandDefinition list, help: unit -> unit) =
+    let mutable bindings = Map.empty<string, ArgumentBinding>
+
+    member this.AddBinding (name: string) (value: ArgumentBinding) =
+        bindings <- bindings |> Map.add name value
+
+    member this.TryFindBinding (name: string) = 
+        bindings |> Map.tryFind name
+
     member this.ProcessCommands(args: string array) =
         // Go through the commands
         // Evaluate each one until a success or failure is found
         // If none return success or failure, display the help string
 
         let fEval (cmd: CommandDefinition) =
-            match cmd.Evaluate(args) with
+            match cmd.Evaluate(this, args) with
             | CommandEvaluationResult.NotApplicable -> None
             | r -> Some(r)
 
@@ -151,9 +154,3 @@ type UIDefinition (cmdDefs: CommandDefinition list, help: unit -> unit) =
             // show the help and return -1
             help()
             -1
-        
-
-
-    
-
-

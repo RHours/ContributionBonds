@@ -47,6 +47,7 @@
   </PropertyGroup>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
+    <None Include="App.config" />
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="FsLexYacc\Lexing.fs" />
     <Compile Include="FsLexYacc\Parsing.fs" />
@@ -68,9 +69,9 @@
     <Compile Include="JSON\JsonLexer.fs" />
     <Compile Include="JSON\Json.fs" />
     <Compile Include="ConsoleUI.fs" />
-    <Compile Include="Program.fs" />
-    <None Include="App.config" />
+    <Compile Include="BondApi.fs" />
     <Content Include="packages.config" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
