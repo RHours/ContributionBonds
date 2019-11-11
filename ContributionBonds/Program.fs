@@ -1,5 +1,4 @@
 ﻿
-open Json.Api
 open ConsoleUI
 open BondApi
 
@@ -20,8 +19,42 @@ let CompanyInitializeEval =
             // Error, Must have a root param value.
             CommandEvaluationResult.Failure(-1, false)
 
-let ContributorCreateEval = NotImplementedEval
-let BondCreateEval = NotImplementedEval
+let ContributorCreateEval = 
+    fun (context: UIContext) ->
+        match context.TryFindBinding("Root") with
+        | Some(ArgumentBinding.StringValue(root)) -> 
+            let contributorDID = CreateContributor root
+            context.AddBinding "ContributorDID" (ArgumentBinding.StringValue(contributorDID))
+            CommandEvaluationResult.Success(1)
+        | _ ->
+            // Error, Must have a root param value.
+            CommandEvaluationResult.Failure(-1, false)
+
+let BondCreateEval = 
+    fun (context: UIContext) ->
+
+        (*
+        bond        create          --terms         A path to a file containing the written terms of the bond agreement.
+                                    --contributor   DID string of the contributor the bond is being issued to.
+                                    --amount        The dollar amount of the bond.
+                                    --rate          The interest rate, expressed as a decimal, e.g., 0.25 is 25%.
+                                    --max           The maximum total payments for the bond.
+        *)
+
+        let root = context.GetBinding<string> "Root" "Argument 'root' is required."
+        let terms = context.GetBinding<string> "Terms" "Argument 'terms' is required."
+        let contributorDID = context.GetBinding<string> "Contributor" "Argument 'contributor' is required."
+        let amount = context.GetBinding<decimal> "Amount" "Argument 'amount' is required."
+        let rate = context.GetBinding<decimal> "Rate" "Argument 'rate' is required."
+        let max = context.GetBinding<decimal> "Max" "Argument 'max' is required."
+
+        let companyDID = GetCompanyDID root
+
+        let bondDID = CreateBond (System.IO.DirectoryInfo(root)) terms companyDID contributorDID amount rate max
+        
+        context.AddBinding "BondDID" (ArgumentBinding.StringValue(bondDID))
+        CommandEvaluationResult.Success(1)
+        
 let BondSignEval = NotImplementedEval
 let BondPaymentEval = NotImplementedEval
 let BondVerifyEval = NotImplementedEval
@@ -69,11 +102,11 @@ bond        create
     --max           The maximum total payments for the bond.
 *)
 
-let BondTermsParam = { Name = "BondTerms"; ParamType = ParamType.ParamString; Default = None; }
-let BondContrbutorParam = { Name = "BondContributor"; ParamType = ParamType.ParamString; Default = None; }
-let BondAmountParam = { Name = "BondAmount"; ParamType = ParamType.ParamDecimal; Default = None; }
-let BondRateParam = { Name = "BondRate"; ParamType = ParamType.ParamDecimal; Default = None; }
-let BondMaxParam = { Name = "BondMax"; ParamType = ParamType.ParamDecimal; Default = None; }
+let BondTermsParam = { Name = "Terms"; ParamType = ParamType.ParamString; Default = None; }
+let BondContrbutorParam = { Name = "Contributor"; ParamType = ParamType.ParamString; Default = None; }
+let BondAmountParam = { Name = "Amount"; ParamType = ParamType.ParamDecimal; Default = None; }
+let BondRateParam = { Name = "Rate"; ParamType = ParamType.ParamDecimal; Default = None; }
+let BondMaxParam = { Name = "Max"; ParamType = ParamType.ParamDecimal; Default = None; }
 
 
 let BondCreateCommand = 
@@ -142,16 +175,34 @@ let UICommands =
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
 
-    let testCompanyInitializeArgs = [| "company"; "initialize"; "--root=C:\\Projects\\RHours\\ContributionBonds\\Data"; |]
-
-
-    let ui = UIContext (UICommands, (fun () -> printfn "help"))
-    let result = ui.ProcessCommands(testCompanyInitializeArgs)
-    printfn "Result %d" result
-
+    let mode = 3
 
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
+    let root = sprintf "--root=%s" (dataDir.FullName)
+    let terms = sprintf "--terms=%s" "C:\\Projects\\RHours\\ContributionBonds\\README.md"
+    let contributor = sprintf "--contributor=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
+    let amount = sprintf "--amount=%f" 100M
+    let rate = sprintf "--rate=%f" 0.25M
+    let maxamt = sprintf "--max=%f" 1000M
+
+    let testCompanyInitializeArgs = [| "company"; "initialize"; root; |]
+    let testContributorCreateArgs = [| "contributor"; "create"; root; |]
+    let testBondCreateArgs = [| "bond"; "create"; root; terms; contributor; amount; rate; maxamt; |]
+
+
+    let testArgs = 
+        match mode with
+        | 0 -> argv
+        | 1 -> testCompanyInitializeArgs
+        | 2 -> testContributorCreateArgs
+        | 3 -> testBondCreateArgs
+        | _ -> failwith "bad"
+
+
+    let ui = UIContext (UICommands, (fun () -> printfn "help"))
+    let result = ui.ProcessCommands(testArgs)
+    printfn "Result %d" result
 
     (*
     let mode = 2

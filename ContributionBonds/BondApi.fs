@@ -92,75 +92,6 @@ let private CreateIdentityDID (path: System.IO.DirectoryInfo) =
     // return the DID string
     didString
 
-let private CreateBond  (path: System.IO.DirectoryInfo)
-                        (terms_file: string) 
-                        (company_did: string) 
-                        (contributor_did: string) 
-                        (amount: decimal)
-                        (rate: decimal)
-                        (max: decimal) =
-    (*
-{
-    "@context": "https://github.com/RHours/ContributionBonds",
-    "id": "BOND_DID",
-    "terms": "TERMS_HASH_STRING",
-    "company": "COMPANY_DID",
-    "contributor": "CONTRIBUTOR_DID",
-    "created": "yyyy-MM-ddThh:mm:ss",
-    "amount": 100.00,
-    "interest-rate": 0.25,
-    "max": 1000.00,
-    "unit": "USD",
-    "payments": 
-        [
-            {
-"date": "yyyy-MM-ddThh:mm:ss",
-"interest": 16.52,
-"amount": 40.00,
-"balance": 76.52
-            }
-        ]
-}
-    *)
-
-    let bondDidString = CreateRhoursDID()
-    let createdString = DateTimeToString (DateTime.UtcNow)
-
-    let termsBytes = 
-        if System.IO.File.Exists(terms_file) then
-            use tf = System.IO.File.OpenText(terms_file)
-            let terms = tf.ReadToEnd()
-            System.Text.UTF8Encoding.UTF8.GetBytes(terms)
-        else
-            failwith "terms file not found."
-
-    use sha256 = SHA256.Create()
-    let terms_hash = sha256.ComputeHash(termsBytes)
-
-    let jsonBond = 
-        JsonValue.JsonObject(
-            [|
-                ("@context", JsonValue.JsonString("https://github.com/RHours/ContributionBonds"));
-                ("id", JsonValue.JsonString(bondDidString));
-                ("terms", JsonValue.JsonString(System.Convert.ToBase64String(terms_hash)));
-                ("company", JsonValue.JsonString(company_did));
-                ("contributor", JsonValue.JsonString(contributor_did));
-                ("created", JsonValue.JsonString(createdString));
-                ("amount", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(amount))));
-                ("interest-rate", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(rate))));
-                ("max", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(max))));
-                ("unit", JsonValue.JsonString("USD"));
-                ("payments", JsonValue.JsonArray([||]));
-            |]
-        )
-
-    use bondFile = System.IO.File.CreateText(System.IO.Path.Combine(path.FullName, bondDidString.Replace(":", "_") + ".json"))
-    WriteJson jsonBond bondFile
-    bondFile.Flush()
-    bondFile.Close()
-
-    // Return the bond DID string
-    bondDidString
 
 let private GetBondLastBalance (bondJson: JsonValue) =
     // last balance is either the value of the balance property of the last payment element
@@ -609,6 +540,29 @@ let private VerifyBond (path: System.IO.DirectoryInfo) (bondFile: string) : (Dat
         None
 
 
+let GetCompanyDID (root: string) =
+    // requires root exists
+    // requires root/Company exists
+    // requires one company DID file exists
+
+    let rootDir = System.IO.DirectoryInfo(root)
+    if rootDir.Exists then
+        match rootDir.GetDirectories("Company") with
+        | [| d; |] ->
+            match d.GetFiles("did_rhours_*.json") with
+            | [| f; |] ->
+                match TryParseRhoursDIDFileName(f.Name) with
+                | Some(did) -> 
+                    did
+                | None ->
+                    failwith "Unable to determine DID from file."
+            | _ ->
+                failwith "Unable to find company DID."
+        | _ ->
+            failwith "Company folder does not exist."
+    else
+        failwith "Root does not exist."
+
 let InitializeCompanyFolder (root: string) =
     // Creates these sub-folders, if they don't exist
     // ./Company
@@ -647,3 +601,93 @@ let InitializeCompanyFolder (root: string) =
     else
         failwith "Root folder does not exist."
 
+
+let CreateContributor (root: string) =
+    // requires root exists
+    // requires root/Contributors exists
+    // Creates a new contributor DID, and returns the DID string
+
+    let rootDir = System.IO.DirectoryInfo(root)
+    if rootDir.Exists then
+        match rootDir.GetDirectories("Contributors") with
+        | [| contributorsDir; |] ->
+            let contributorDID = CreateIdentityDID contributorsDir
+
+            // return the contributor DID
+            contributorDID
+        | _ ->
+            failwith "Contributors directory does not exist."
+    else
+        failwith "Root folder does not exist."
+
+let CreateBond  (path: System.IO.DirectoryInfo)
+                (terms_file: string) 
+                (company_did: string) 
+                (contributor_did: string) 
+                (amount: decimal)
+                (rate: decimal)
+                (max: decimal) =
+    (*
+{
+    "@context": "https://github.com/RHours/ContributionBonds",
+    "id": "BOND_DID",
+    "terms": "TERMS_HASH_STRING",
+    "company": "COMPANY_DID",
+    "contributor": "CONTRIBUTOR_DID",
+    "created": "yyyy-MM-ddThh:mm:ss",
+    "amount": 100.00,
+    "interest-rate": 0.25,
+    "max": 1000.00,
+    "unit": "USD",
+    "payments": 
+        [
+            {
+"date": "yyyy-MM-ddThh:mm:ss",
+"interest": 16.52,
+"amount": 40.00,
+"balance": 76.52
+            }
+        ]
+}
+    *)
+
+    let bondDidString = CreateRhoursDID()
+    let createdString = DateTimeToString (DateTime.UtcNow)
+
+    let termsBytes = 
+        if System.IO.File.Exists(terms_file) then
+            use tf = System.IO.File.OpenText(terms_file)
+            let terms = tf.ReadToEnd()
+            System.Text.UTF8Encoding.UTF8.GetBytes(terms)
+        else
+            failwith "terms file not found."
+
+    use sha256 = SHA256.Create()
+    let terms_hash = sha256.ComputeHash(termsBytes)
+
+    let jsonBond = 
+        JsonValue.JsonObject(
+            [|
+                ("@context", JsonValue.JsonString("https://github.com/RHours/ContributionBonds"));
+                ("id", JsonValue.JsonString(bondDidString));
+                ("terms", JsonValue.JsonString(System.Convert.ToBase64String(terms_hash)));
+                ("company", JsonValue.JsonString(company_did));
+                ("contributor", JsonValue.JsonString(contributor_did));
+                ("created", JsonValue.JsonString(createdString));
+                ("amount", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(amount))));
+                ("interest-rate", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(rate))));
+                ("max", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(max))));
+                ("unit", JsonValue.JsonString("USD"));
+                ("payments", JsonValue.JsonArray([||]));
+            |]
+        )
+
+    let bondsDir = System.IO.Path.Combine(path.FullName, "Bonds")
+
+    use bondFile = System.IO.File.CreateText(System.IO.Path.Combine(bondsDir, bondDidString.Replace(":", "_") + ".json"))
+    WriteJson jsonBond bondFile
+    bondFile.Flush()
+    bondFile.Close()
+
+    // Return the bond DID string
+    bondDidString

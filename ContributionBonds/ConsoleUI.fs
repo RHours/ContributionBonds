@@ -133,6 +133,17 @@ and UIContext (cmdDefs: CommandDefinition list, help: unit -> unit) =
     member this.TryFindBinding (name: string) = 
         bindings |> Map.tryFind name
 
+    member this.GetBinding<'T> (name: string) (msg: string) : 'T =
+        match bindings |> Map.tryFind name with
+        | Some(ArgumentBinding.StringValue(s)) when typeof<'T> = typeof<string> ->
+            (s :> obj) :?> 'T
+        | Some(ArgumentBinding.DecimalValue(d)) when typeof<'T> = typeof<decimal> ->
+            (d :> obj) :?> 'T
+        | Some(ArgumentBinding.BytesValue(b)) when typeof<'T> = typeof<byte array> ->
+            (b :> obj) :?> 'T
+        | _ ->
+            failwith msg
+
     member this.ProcessCommands(args: string array) =
         // Go through the commands
         // Evaluate each one until a success or failure is found
