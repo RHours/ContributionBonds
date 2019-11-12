@@ -101,7 +101,28 @@ let BondPaymentEval =
 
         CommandEvaluationResult.Success(1)
 
-let BondVerifyEval = NotImplementedEval
+let BondVerifyEval = 
+    fun (context: UIContext) ->
+        (*
+        bond       verify           --id            The DID string for the bond.
+        *)
+
+        let root = context.GetBinding<string> "Root" "Argument 'root' is required."
+        let bondDID = context.GetBinding<string> "Id" "Argument 'id' is required."
+        
+        let rootDir = System.IO.DirectoryInfo(root)
+        let bondFile = System.IO.Path.Combine(root, "Bonds", bondDID.Replace(":", "_") + ".json")
+
+        // VerifyBond (path: System.IO.DirectoryInfo) (bondFile: string) : (DateTime * DateTime) option =
+        match VerifyBond rootDir bondFile with
+        | Some(companyProofDate, contributorProofDate) ->
+            printfn "Company proof date: %s" (companyProofDate.ToString())
+            printfn "Contributor proof date: %s" (contributorProofDate.ToString())
+            CommandEvaluationResult.Success(1)
+        | None ->
+            printfn "Bond does not validate."
+            CommandEvaluationResult.Failure(-1, false)
+        
 
 let RootParamDefault = 
     fun () -> 
@@ -239,8 +260,9 @@ let main argv =
     let testBondSignContributorArgs = [| "bond"; "sign"; root; bondid; signatoryContributor; |]
     let testBondSignCompanyArgs = [| "bond"; "sign"; root; bondid; signatoryCompany; |]
     let testBondPaymentArgs = [| "bond"; "payment"; root; bondid; paymentAmount; |]
+    let testBondVerifyArgs = [| "bond"; "verify"; root; bondid; |]
 
-    let mode = 6
+    let mode = 7
 
     let testArgs = 
         match mode with
@@ -251,58 +273,13 @@ let main argv =
         | 4 -> testBondSignContributorArgs
         | 5 -> testBondSignCompanyArgs
         | 6 -> testBondPaymentArgs
+        | 7 -> testBondVerifyArgs
         | _ -> failwith "bad"
 
 
     let ui = UIContext (UICommands, (fun () -> printfn "help"))
     let result = ui.ProcessCommands(testArgs)
     printfn "Result %d" result
-
-    (*
-    let mode = 2
-
-    match mode with
-    | 1 -> 
-        // Create a company DID
-        let companyDID = CreateIdentityDID(dataDir)
-
-        // Create a contributor DID
-        let contributorDID = CreateIdentityDID(dataDir)
-
-        // Create a bond
-        let bondDID = CreateBond 
-                            dataDir                 // (path: System.IO.DirectoryInfo)
-                            "..\\..\\..\\README.md" // (terms_file: string) 
-                            companyDID              // (company_did: string) 
-                            contributorDID          // (contributor_did: string) 
-                            (decimal(100.00))       // (amount: decimal)
-                            (decimal(0.25))         // (rate: decimal)
-                            (decimal(1000.00))      // (max: decimal)
-
-        let bondFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName bondDID) + ".json")
-        let companyPemFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName companyDID)  + ".pem")
-        let companyDidFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName companyDID)  + ".json")
-        let contributorPemFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName contributorDID) + ".pem")
-        let contributorDidFile = System.IO.Path.Combine(dataDir.FullName, (DIDFileName contributorDID) + ".json")
-
-        // company signs the bond
-        SignBond bondFile companyDidFile companyPemFile
-
-        // contributor signs the bond
-        SignBond bondFile contributorDidFile contributorPemFile
-    | 2 -> 
-        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_2wG71RimEzFQHoKNRTRsRSakcX3Q.json")
-    
-        // Verify the bond
-        let result = VerifyBond dataDir bondFile
-        printf "%A" result
-    | 3 ->
-        let bondFile = System.IO.Path.Combine(dataDir.FullName, "did_rhours_2wG71RimEzFQHoKNRTRsRSakcX3Q.json")
-        let remainder = MakeBondPayment bondFile (decimal(20))
-        printf "Remainder = %f" remainder
-
-    | _ -> failwith "bad mode"
-    *)
 
 
     0 // return an integer exit code
