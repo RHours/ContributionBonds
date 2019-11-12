@@ -211,14 +211,16 @@ let main argv =
     let rate = sprintf "--rate=%f" 0.25M
     let maxamt = sprintf "--max=%f" 1000M
     let bondid = "--id=did:rhours:TN6rhGcXTaFqcaGAXsQ5BqaaFTn"
-    let signatory = sprintf "--signatory=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
+    let signatoryContributor = sprintf "--signatory=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
+    let signatoryCompany = sprintf "--signatory=did:rhours:4Kdk9wzaCMo1hqG7Xb1HqvwzKxFy"
     
     let testCompanyInitializeArgs = [| "company"; "initialize"; root; |]
     let testContributorCreateArgs = [| "contributor"; "create"; root; |]
     let testBondCreateArgs = [| "bond"; "create"; root; terms; contributor; amount; rate; maxamt; |]
-    let testBondSignArgs = [| "bond"; "sign"; root; bondid; signatory; |]
+    let testBondSignContributorArgs = [| "bond"; "sign"; root; bondid; signatoryContributor; |]
+    let testBondSignCompanyArgs = [| "bond"; "sign"; root; bondid; signatoryCompany; |]
 
-    let mode = 4
+    let mode = 5
 
     let testArgs = 
         match mode with
@@ -226,7 +228,8 @@ let main argv =
         | 1 -> testCompanyInitializeArgs
         | 2 -> testContributorCreateArgs
         | 3 -> testBondCreateArgs
-        | 4 -> testBondSignArgs
+        | 4 -> testBondSignContributorArgs
+        | 5 -> testBondSignCompanyArgs
         | _ -> failwith "bad"
 
 
