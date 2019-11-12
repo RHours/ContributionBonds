@@ -201,7 +201,7 @@ cb command sub-command --param=value --param=value ...
 
         Output: Success or failure messages.
 
-    bond        sign            --bond          The DID string for the bond.
+    bond        sign            --id            The DID string for the bond.
                                 --signatory     The DID string of the identity signing the bond. This
                                                 needs to be either the contributor or the company.
 

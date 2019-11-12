@@ -94,20 +94,24 @@ let DateTimeToString (date: DateTime) =
 let MakePEMString (data: byte array) (label: string) =
     // label example: PRIVATE KEY
     let sb = System.Text.StringBuilder()
-    sb.AppendLine(sprintf "-----BEGIN %s-----" label)
-        .AppendLine(System.Convert.ToBase64String(data))
-        .AppendLine(sprintf "-----END %s-----" label)
+    let dataBase64 = System.Convert.ToBase64String(data)
+
+    sb.AppendLine(sprintf "-----BEGIN %s-----" label) |> ignore
+
+    for i = 0 to (dataBase64.Length % 64) do
+        sb.AppendLine(dataBase64.Substring(i * 64, min 64 (dataBase64.Length - i))) |> ignore
+    
+    sb.AppendLine(sprintf "-----END %s-----" label)
         .ToString()
 
 let ParsePEMString (pem: string) =
-    let pemRegex = System.Text.RegularExpressions.Regex("""[\-]+BEGIN (?<label>[^\-]+)[\-]+\r?\n?(?<key>[A-Za-z0-9\+\/\=]*)\r?\n?[\-]+END [^\-]+[\-]+\r?\n?""")
+    let pemRegex = System.Text.RegularExpressions.Regex("""[\-]+BEGIN (?<label>[^\-]+)[\-]+\r?\n?(?<key>[A-Za-z0-9\+\/\=\r\n]*)\r?\n?[\-]+END [^\-]+[\-]+\r?\n?""")
     let result = pemRegex.Match(pem)
     if result.Success then
-        (result.Groups.[1].Value, result.Groups.[2].Value)
+        (result.Groups.[1].Value, result.Groups.[2].Value.Replace("\r", "").Replace("\n", ""))
     else
         failwith "could not parse pem"
 
-        
 let DIDFileName (did: string) = did.Replace(":", "_")
         
 let JsonEscape (s:string) : string = 

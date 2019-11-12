@@ -55,7 +55,33 @@ let BondCreateEval =
         context.AddBinding "BondDID" (ArgumentBinding.StringValue(bondDID))
         CommandEvaluationResult.Success(1)
         
-let BondSignEval = NotImplementedEval
+let BondSignEval = 
+    fun (context: UIContext) ->
+        (*
+        bond        sign            --bond          The DID string for the bond.
+                                    --signatory     The DID string of the identity signing the bond. This
+                                                    needs to be either the contributor or the company.
+        *)
+
+        let root = context.GetBinding<string> "Root" "Argument 'root' is required."
+        let bondDID = context.GetBinding<string> "Id" "Argument 'id' is required."
+        let signatoryDID = context.GetBinding<string> "Signatory" "Argument 'signatory' is required."
+        let pemBytes = context.GetBinding<byte array> "PEM" "PEM is required."
+
+        // SignBond (bondFile: string) (didFile: string) (pemString: string)
+        let bondFile = System.IO.Path.Combine(root, "Bonds", bondDID.Replace(":", "_") + ".json")
+
+        let signatoryFile =
+            let companyDID = GetCompanyDID root
+            if signatoryDID = companyDID then
+                // company is signing
+                System.IO.Path.Combine(root, "Company", signatoryDID.Replace(":", "_") + ".json")
+            else
+                System.IO.Path.Combine(root, "Contributors", signatoryDID.Replace(":", "_") + ".json")
+
+        SignBond bondFile signatoryFile pemBytes
+        CommandEvaluationResult.Success(1)
+
 let BondPaymentEval = NotImplementedEval
 let BondVerifyEval = NotImplementedEval
 
@@ -123,15 +149,15 @@ bond        sign            --bond          The DID string for the bond.
                             --signatory     The DID string of the identity signing the bond. This
                                             needs to be either the contributor or the company.
 *)
-let BondIdParam = { Name = "bond"; ParamType = ParamType.ParamString; Default = None; }
-let BondSignatoryParam = { Name = "signatory"; ParamType = ParamType.ParamString; Default = None; }
+let BondIdParam = { Name = "Id"; ParamType = ParamType.ParamString; Default = None; }
+let BondSignatoryParam = { Name = "Signatory"; ParamType = ParamType.ParamString; Default = None; }
 
 let BondSignCommand = 
     CommandDefinition(
         "bond",
         Some("sign"),
         [ RootParam; BondIdParam; BondSignatoryParam; ],
-        None,
+        Some("PRIVATE KEY"),
         BondSignEval
     )
 
@@ -175,21 +201,24 @@ let UICommands =
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
 
-    let mode = 3
 
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
     let root = sprintf "--root=%s" (dataDir.FullName)
     let terms = sprintf "--terms=%s" "C:\\Projects\\RHours\\ContributionBonds\\README.md"
-    let contributor = sprintf "--contributor=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
+    let contributor = "--contributor=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
     let amount = sprintf "--amount=%f" 100M
     let rate = sprintf "--rate=%f" 0.25M
     let maxamt = sprintf "--max=%f" 1000M
-
+    let bondid = "--id=did:rhours:TN6rhGcXTaFqcaGAXsQ5BqaaFTn"
+    let signatory = sprintf "--signatory=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
+    
     let testCompanyInitializeArgs = [| "company"; "initialize"; root; |]
     let testContributorCreateArgs = [| "contributor"; "create"; root; |]
     let testBondCreateArgs = [| "bond"; "create"; root; terms; contributor; amount; rate; maxamt; |]
+    let testBondSignArgs = [| "bond"; "sign"; root; bondid; signatory; |]
 
+    let mode = 4
 
     let testArgs = 
         match mode with
@@ -197,6 +226,7 @@ let main argv =
         | 1 -> testCompanyInitializeArgs
         | 2 -> testContributorCreateArgs
         | 3 -> testBondCreateArgs
+        | 4 -> testBondSignArgs
         | _ -> failwith "bad"
 
 

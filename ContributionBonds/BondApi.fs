@@ -252,104 +252,6 @@ let private MakeBondPayment (bondFile: string) (amount: decimal) =
     // return the remainder
     remainder
 
-let private SignBond (bondFile: string) (didFile: string) (privateKeyFile: string) =
-    // Parse bond file
-    // Parse did document, this is the DID document of the person signing
-    //          it must match either the company or contributor DID of the bond
-    // Parse private key file
-    // Create RSA with private key
-    // Call SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string)
-    // Write updated json bond
-
-    use bondTR = System.IO.File.OpenText(bondFile)
-    let bondJsonObject = 
-        match ReadJson bondTR with
-        | JsonValue.JsonObject(o) -> o
-        | _ -> failwith "bond must be a json object."
-    bondTR.Close()
-
-    // get the company did of the bond
-    let companyDID = 
-        match bondJsonObject |> Array.tryPick (fun (n, v) -> if n = "company" then Some(v) else None) with
-        | Some(JsonValue.JsonString(s)) -> s
-        | _ -> failwith "unable to get company DID from bond."
-
-    // get the contributor did of the bond
-    let contributorDID = 
-        match bondJsonObject |> Array.tryPick (fun (n, v) -> if n = "contributor" then Some(v) else None) with
-        | Some(JsonValue.JsonString(s)) -> s
-        | _ -> failwith "unable to get contributor DID from bond."
-
-    use didTR = System.IO.File.OpenText(didFile)
-    let didJsonObject = 
-        match ReadJson didTR with
-        | JsonValue.JsonObject(o) -> o
-        | _ -> failwith "did document must be json object."
-
-    // get the signing did from the did document "id" property
-    let signingDID = 
-        match didJsonObject |> Array.tryPick (fun (n, v) -> if n = "id" then Some(v) else None) with
-        | Some(JsonValue.JsonString(s)) -> s
-        | _ -> failwith "unable to get id from did document."
-
-    // Validate, the id of the DID document must match the DID of either the company or the contributor
-    if not(signingDID = companyDID || signingDID = contributorDID) then
-        failwith "signing DID must match one of either the bond company or contributor DIDs."
-
-    // get the keyType, controller and public key from the did document
-    let authenticationObject = 
-        match didJsonObject |> Array.tryPick (fun (n, v) -> if n = "authentication" then Some(v) else None) with
-        | Some(JsonValue.JsonObject(o)) -> o
-        | _ -> failwith "unable to get 'authentication' property from did document."
-
-    let keyType =
-           match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "type" then Some(v) else None) with
-           | Some(JsonValue.JsonString(s)) -> s
-           | _ -> failwith "unable to get 'publicKeyPem' property from did document."
-
-    if keyType <> "RsaVerificationKey2018" then
-        failwith "key type must be 'RsaVerificationKey2018'."
-
-    let controllerDID =
-        match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "controller" then Some(v) else None) with
-        | Some(JsonValue.JsonString(s)) -> s
-        | _ -> failwith "unable to get 'controller' property from did document."
-
-    let authenticationId =
-        match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "id" then Some(v) else None) with
-        | Some(JsonValue.JsonString(s)) -> s
-        | _ -> failwith "unable to get 'authentication.id' property from did document."
-
-    // Validate, the controller DID must match the signing DID
-    if not(signingDID = controllerDID) then
-        failwith "the signing DID must match the controller DID."
-
-    let publicKeyPem =
-           match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "publicKeyPem" then Some(v) else None) with
-           | Some(JsonValue.JsonString(s)) -> s
-           | _ -> failwith "unable to get 'publicKeyPem' property from did document."
-
-    let (_, pubKeyString) = ParsePEMString publicKeyPem
-    let pubKeyBytes = System.Convert.FromBase64String(pubKeyString)
-
-    let pemString = System.IO.File.ReadAllText(privateKeyFile)
-    let (_, keyString) = ParsePEMString pemString
-
-    let key = CngKey.Import(System.Convert.FromBase64String(keyString), CngKeyBlobFormat.GenericPrivateBlob)
-
-    // public key in the did document must match the key derived from the private key
-    if pubKeyBytes <> key.Export(CngKeyBlobFormat.GenericPublicBlob) then
-        failwith "Public key does not match public key in did document."
-    
-    use rsa = new RSACng(key)
-    // Call SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string)
-    let signedBondJson = SignJsonEmbedded rsa (JsonValue.JsonObject(bondJsonObject)) authenticationId
-
-    // Write updated json bond
-    use bondTW = System.IO.File.CreateText(bondFile)
-    WriteJson signedBondJson bondTW
-    bondTW.Flush()
-    bondTW.Close()
 
 let private VerifyBond (path: System.IO.DirectoryInfo) (bondFile: string) : (DateTime * DateTime) option =
     // VerifyJsonSignature (json: JsonValue) (resolver: string -> byte[]) (proof: JsonValue option) : JsonValue option
@@ -691,3 +593,99 @@ let CreateBond  (path: System.IO.DirectoryInfo)
 
     // Return the bond DID string
     bondDidString
+
+let SignBond (bondFile: string) (didFile: string) (pemBytes: byte array) =
+    // Parse bond file
+    // Parse did document, this is the DID document of the person signing
+    //          it must match either the company or contributor DID of the bond
+    // Parse private key file
+    // Create RSA with private key
+    // Call SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string)
+    // Write updated json bond
+
+    use bondTR = System.IO.File.OpenText(bondFile)
+    let bondJsonObject = 
+        match ReadJson bondTR with
+        | JsonValue.JsonObject(o) -> o
+        | _ -> failwith "bond must be a json object."
+    bondTR.Close()
+
+    // get the company did of the bond
+    let companyDID = 
+        match bondJsonObject |> Array.tryPick (fun (n, v) -> if n = "company" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get company DID from bond."
+
+    // get the contributor did of the bond
+    let contributorDID = 
+        match bondJsonObject |> Array.tryPick (fun (n, v) -> if n = "contributor" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get contributor DID from bond."
+
+    use didTR = System.IO.File.OpenText(didFile)
+    let didJsonObject = 
+        match ReadJson didTR with
+        | JsonValue.JsonObject(o) -> o
+        | _ -> failwith "did document must be json object."
+
+    // get the signing did from the did document "id" property
+    let signingDID = 
+        match didJsonObject |> Array.tryPick (fun (n, v) -> if n = "id" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get id from did document."
+
+    // Validate, the id of the DID document must match the DID of either the company or the contributor
+    if not(signingDID = companyDID || signingDID = contributorDID) then
+        failwith "signing DID must match one of either the bond company or contributor DIDs."
+
+    // get the keyType, controller and public key from the did document
+    let authenticationObject = 
+        match didJsonObject |> Array.tryPick (fun (n, v) -> if n = "authentication" then Some(v) else None) with
+        | Some(JsonValue.JsonObject(o)) -> o
+        | _ -> failwith "unable to get 'authentication' property from did document."
+
+    let keyType =
+           match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "type" then Some(v) else None) with
+           | Some(JsonValue.JsonString(s)) -> s
+           | _ -> failwith "unable to get 'publicKeyPem' property from did document."
+
+    if keyType <> "RsaVerificationKey2018" then
+        failwith "key type must be 'RsaVerificationKey2018'."
+
+    let controllerDID =
+        match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "controller" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get 'controller' property from did document."
+
+    let authenticationId =
+        match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "id" then Some(v) else None) with
+        | Some(JsonValue.JsonString(s)) -> s
+        | _ -> failwith "unable to get 'authentication.id' property from did document."
+
+    // Validate, the controller DID must match the signing DID
+    if not(signingDID = controllerDID) then
+        failwith "the signing DID must match the controller DID."
+
+    let publicKeyPem =
+           match authenticationObject |> Array.tryPick (fun (n, v) -> if n = "publicKeyPem" then Some(v) else None) with
+           | Some(JsonValue.JsonString(s)) -> s
+           | _ -> failwith "unable to get 'publicKeyPem' property from did document."
+
+    let (_, pubKeyString) = ParsePEMString publicKeyPem
+    let pubKeyBytes = System.Convert.FromBase64String(pubKeyString)
+
+    let key = CngKey.Import(pemBytes, CngKeyBlobFormat.GenericPrivateBlob)
+
+    // public key in the did document must match the key derived from the private key
+    if pubKeyBytes <> key.Export(CngKeyBlobFormat.GenericPublicBlob) then
+        failwith "Public key does not match public key in did document."
+    
+    use rsa = new RSACng(key)
+    // Call SignJsonEmbedded (rsa: RSA) (json: Json.Parser.JsonValue) (creator: string)
+    let signedBondJson = SignJsonEmbedded rsa (JsonValue.JsonObject(bondJsonObject)) authenticationId
+
+    // Write updated json bond
+    use bondTW = System.IO.File.CreateText(bondFile)
+    WriteJson signedBondJson bondTW
+    bondTW.Flush()
+    bondTW.Close()

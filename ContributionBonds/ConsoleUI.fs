@@ -81,6 +81,14 @@ type CommandDefinition (command: string,
             | Some(_) ->
                 BindDefaults context t
 
+    let rec ReadConsolePEM (sb: System.Text.StringBuilder) =
+        match System.Console.ReadLine() with
+        | "" ->
+            sb.ToString()
+        | s ->
+            sb.Append(s) |> ignore
+            ReadConsolePEM sb
+
     member this.Evaluate(context: UIContext, args: string array) : CommandEvaluationResult =
         // return NotApplicable if command not equal arg 1
         // return NotApplicable if subCommand not equal to arg 2 - when subCommand is Some
@@ -116,7 +124,7 @@ type CommandDefinition (command: string,
             match pemLabel with
             | Some(label) ->
                 printfn "Entery PEM for %s" label
-                let pemText = System.Console.ReadLine()
+                let pemText = ReadConsolePEM (System.Text.StringBuilder())
                 let (_ , pemString) = Json.Api.ParsePEMString pemText
                 context.AddBinding "PEM" (ArgumentBinding.BytesValue(System.Convert.FromBase64String(pemString)))
             | None -> ()
