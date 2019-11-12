@@ -148,109 +148,6 @@ let private CalculateInterest (pv: decimal) (rate: decimal) (days: int) : decima
     let fv = System.Math.Round(pv * (decimal((exp (float((dailyRate * (decimal(days)))))))), 2)
     fv - pv
 
-let private MakeBondPayment (bondFile: string) (amount: decimal) =
-    // get the previous balance
-    // calculate the interest
-    // create the payment object
-    // add it to the payments array
-    // total payments is bounded by bond.max
-
-    use bondTR = System.IO.File.OpenText(bondFile)
-    let bondJson = ReadJson bondTR
-    bondTR.Close()
-
-    let bondJsonObj = 
-        match bondJson with
-        | JsonValue.JsonObject(o) -> o
-        | _ -> failwith "bond must be a json object."
-    
-    let (lastBalance, lastBalanceDate) = GetBondLastBalance bondJson
-
-    // get the of the bond interest rate
-    let rate = 
-        match bondJsonObj |> Array.tryPick ( fun (n, v) -> if n = "interest-rate" then Some(v) else None) with
-        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
-        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
-        | _ -> failwith "couldn't get bond interest rate."
-
-    // get the of the bond max payments
-    let maxPayments = 
-        match bondJsonObj |> Array.tryPick ( fun (n, v) -> if n = "max" then Some(v) else None) with
-        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
-        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
-        | _ -> failwith "couldn't get bond max payments."
-
-    let paymentsIndex = bondJsonObj |> Array.findIndex ( fun (n, v) -> n = "payments")
-
-    // get total bond payments
-    let totalPayments = 
-        match bondJsonObj.[paymentsIndex] with
-        | ("payments", JsonValue.JsonArray(paymentsArray)) ->
-            paymentsArray |> Array.sumBy 
-                (
-                    fun p -> 
-                        match p with 
-                        | JsonValue.JsonObject(pObj) ->
-                            match pObj |> Array.tryPick ( fun (n, v) -> if n = "amount" then Some(v) else None) with
-                            | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
-                            | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
-                            | _ -> failwith "Can't access payment amount."
-                        | _ -> failwith "payment element must be an object."
-                )
-        | _ -> failwith "unable to access bond.payments array."        
-        
-    let now = DateTime.UtcNow
-    let days = int((now - lastBalanceDate).TotalDays)
-    let interest = CalculateInterest lastBalance rate days
-    let adjustedAmount = 
-        // don't pay more than bond.max allows, cap amount to pay
-        Math.Min(amount, maxPayments - totalPayments)
-
-    // new balance cannot be more than max - totalPayments
-    let balance = 
-        System.Math.Min(
-            maxPayments - (totalPayments + adjustedAmount), // bond.max - new total payments
-            System.Math.Max(
-                lastBalance + interest - adjustedAmount,
-                decimal(0)
-            )
-        )
-
-    // amount in minus the amount of this payment
-    let remainder = amount - (lastBalance - balance)
-
-    let paymentJson = 
-        JsonValue.JsonObject (
-            [|
-                ("date", JsonValue.JsonString(DateTimeToString now));
-                ("interest", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(interest))));
-                ("amount", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(adjustedAmount))));
-                ("balance", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(balance))));
-            |]
-        )
-    (*
-        {
-            "date": "UTC payment date, format is yyyy-MM-ddThh:mm:ss",
-            "interest": 16.52,
-            "amount": 40.00,
-            "balance": 76.52
-        }
-    *)
-
-    // append this payments object to the payments array
-    match bondJsonObj.[paymentsIndex] with
-    | ("payments", JsonValue.JsonArray(paymentsArray)) ->
-        bondJsonObj.[paymentsIndex] <- ("payments", JsonValue.JsonArray(Array.append paymentsArray [| paymentJson; |]))
-    | _ -> failwith "Unable to update bond payments array."
-
-    // Write updated json bond
-    use bondTW = System.IO.File.CreateText(bondFile)
-    WriteJson bondJson bondTW
-    bondTW.Flush()
-    bondTW.Close()
-
-    // return the remainder
-    remainder
 
 
 let private VerifyBond (path: System.IO.DirectoryInfo) (bondFile: string) : (DateTime * DateTime) option =
@@ -689,3 +586,107 @@ let SignBond (bondFile: string) (didFile: string) (pemBytes: byte array) =
     WriteJson signedBondJson bondTW
     bondTW.Flush()
     bondTW.Close()
+
+let MakeBondPayment (bondFile: string) (amount: decimal) =
+    // get the previous balance
+    // calculate the interest
+    // create the payment object
+    // add it to the payments array
+    // total payments is bounded by bond.max
+    
+    use bondTR = System.IO.File.OpenText(bondFile)
+    let bondJson = ReadJson bondTR
+    bondTR.Close()
+    
+    let bondJsonObj = 
+        match bondJson with
+        | JsonValue.JsonObject(o) -> o
+        | _ -> failwith "bond must be a json object."
+        
+    let (lastBalance, lastBalanceDate) = GetBondLastBalance bondJson
+    
+    // get the of the bond interest rate
+    let rate = 
+        match bondJsonObj |> Array.tryPick ( fun (n, v) -> if n = "interest-rate" then Some(v) else None) with
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
+        | _ -> failwith "couldn't get bond interest rate."
+    
+    // get the of the bond max payments
+    let maxPayments = 
+        match bondJsonObj |> Array.tryPick ( fun (n, v) -> if n = "max" then Some(v) else None) with
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
+        | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
+        | _ -> failwith "couldn't get bond max payments."
+    
+    let paymentsIndex = bondJsonObj |> Array.findIndex ( fun (n, v) -> n = "payments")
+    
+    // get total bond payments
+    let totalPayments = 
+        match bondJsonObj.[paymentsIndex] with
+        | ("payments", JsonValue.JsonArray(paymentsArray)) ->
+            paymentsArray |> Array.sumBy 
+                (
+                    fun p -> 
+                        match p with 
+                        | JsonValue.JsonObject(pObj) ->
+                            match pObj |> Array.tryPick ( fun (n, v) -> if n = "amount" then Some(v) else None) with
+                            | Some(JsonValue.JsonNumber(JsonNumber.JsonInteger(i))) -> decimal(i)
+                            | Some(JsonValue.JsonNumber(JsonNumber.JsonFloat(f))) -> decimal(f)
+                            | _ -> failwith "Can't access payment amount."
+                        | _ -> failwith "payment element must be an object."
+                )
+        | _ -> failwith "unable to access bond.payments array."        
+            
+    let now = DateTime.UtcNow
+    let days = int((now - lastBalanceDate).TotalDays)
+    let interest = CalculateInterest lastBalance rate days
+    let adjustedAmount = 
+        // don't pay more than bond.max allows, cap amount to pay
+        min amount (maxPayments - totalPayments)
+    
+    // new balance cannot be more than max - totalPayments
+    let balance = 
+        min
+            (maxPayments - (totalPayments + adjustedAmount)) // bond.max - new total payments
+            (max
+                (lastBalance + interest - adjustedAmount)
+                0M
+            )        
+    
+    // amount in minus the amount of this payment
+    let remainder = amount - adjustedAmount
+    
+    let paymentJson = 
+        JsonValue.JsonObject (
+            [|
+                ("date", JsonValue.JsonString(DateTimeToString now));
+                ("interest", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(interest))));
+                ("amount", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(adjustedAmount))));
+                ("balance", JsonValue.JsonNumber(JsonNumber.JsonFloat(float(balance))));
+            |]
+        )
+    (*
+        {
+            "date": "UTC payment date, format is yyyy-MM-ddThh:mm:ss",
+            "interest": 16.52,
+            "amount": 40.00,
+            "balance": 76.52
+        }
+    *)
+    
+    // append this payments object to the payments array
+    match bondJsonObj.[paymentsIndex] with
+    | ("payments", JsonValue.JsonArray(paymentsArray)) ->
+        bondJsonObj.[paymentsIndex] <- ("payments", JsonValue.JsonArray(Array.append paymentsArray [| paymentJson; |]))
+    | _ -> failwith "Unable to update bond payments array."
+    
+    // Write updated json bond
+    use bondTW = System.IO.File.CreateText(bondFile)
+    WriteJson bondJson bondTW
+    bondTW.Flush()
+    bondTW.Close()
+    
+    // return the remainder
+    remainder
+    

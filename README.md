@@ -210,7 +210,7 @@ cb command sub-command --param=value --param=value ...
 
         Output: Success or failure messages.
 
-    bond        payment         --bond          The DID string for the bond.
+    bond        payment         --id            The DID string for the bond.
                                 --amount        The amount of payment to apply to the bond. This number may be
                                                 adjusted downward to avoid overpayment.
 
@@ -219,7 +219,7 @@ cb command sub-command --param=value --param=value ...
 
         Ouput:  A summary of the successful payment or error messages.
 
-    bond       verify           --bond          The DID string for the bond.
+    bond       verify           --id            The DID string for the bond.
 
         Action: The bond signatures are verified.
 

@@ -82,7 +82,25 @@ let BondSignEval =
         SignBond bondFile signatoryFile pemBytes
         CommandEvaluationResult.Success(1)
 
-let BondPaymentEval = NotImplementedEval
+let BondPaymentEval = 
+    fun (context: UIContext) ->
+        (*
+        bond        payment         --id            The DID string for the bond.
+                                    --amount        The amount of payment to apply to the bond. This number may be
+                                                    adjusted downward to avoid overpayment.
+        *)
+        let root = context.GetBinding<string> "Root" "Argument 'root' is required."
+        let bondDID = context.GetBinding<string> "Id" "Argument 'id' is required."
+        let amount = context.GetBinding<decimal> "Amount" "Argument 'amount' is required."
+        
+        let bondFile = System.IO.Path.Combine(root, "Bonds", bondDID.Replace(":", "_") + ".json")
+
+        // MakeBondPayment (bondFile: string) (amount: decimal)
+        let remainder = MakeBondPayment bondFile amount
+        printfn "Amount Paid: %f" (amount - remainder)
+
+        CommandEvaluationResult.Success(1)
+
 let BondVerifyEval = NotImplementedEval
 
 let RootParamDefault = 
@@ -213,14 +231,16 @@ let main argv =
     let bondid = "--id=did:rhours:TN6rhGcXTaFqcaGAXsQ5BqaaFTn"
     let signatoryContributor = sprintf "--signatory=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
     let signatoryCompany = sprintf "--signatory=did:rhours:4Kdk9wzaCMo1hqG7Xb1HqvwzKxFy"
+    let paymentAmount = sprintf "--amount=%f" 20M
     
     let testCompanyInitializeArgs = [| "company"; "initialize"; root; |]
     let testContributorCreateArgs = [| "contributor"; "create"; root; |]
     let testBondCreateArgs = [| "bond"; "create"; root; terms; contributor; amount; rate; maxamt; |]
     let testBondSignContributorArgs = [| "bond"; "sign"; root; bondid; signatoryContributor; |]
     let testBondSignCompanyArgs = [| "bond"; "sign"; root; bondid; signatoryCompany; |]
+    let testBondPaymentArgs = [| "bond"; "payment"; root; bondid; paymentAmount; |]
 
-    let mode = 5
+    let mode = 6
 
     let testArgs = 
         match mode with
@@ -230,6 +250,7 @@ let main argv =
         | 3 -> testBondCreateArgs
         | 4 -> testBondSignContributorArgs
         | 5 -> testBondSignCompanyArgs
+        | 6 -> testBondPaymentArgs
         | _ -> failwith "bad"
 
 
