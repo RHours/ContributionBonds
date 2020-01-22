@@ -1,4 +1,23 @@
 ﻿
+(*  TO DO
+
+Hi @glenbraun,
+
+You recently used a password to access an endpoint through the GitHub API using git-credential-manager 
+(Microsoft Windows NT 6.2.9200.0; Win32NT; x64) CLR/4.0.30319 git-tools/1.15.2. We will deprecate 
+basic authentication using password to this endpoint soon:
+
+https://api.github.com/user/subscriptions
+
+We recommend using a personal access token (PAT) with the appropriate scope to access this endpoint 
+instead. Visit https://github.com/settings/tokens for more information.
+
+Thanks,
+The GitHub Team
+
+*)
+
+
 open ConsoleUI
 open BondApi
 
@@ -240,18 +259,17 @@ let UICommands =
 let main argv = 
     Internal.Utilities.Text.Parsing.Flags.debug <- false
 
-
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
     let root = sprintf "--root=%s" (dataDir.FullName)
     let terms = sprintf "--terms=%s" "C:\\Projects\\RHours\\ContributionBonds\\README.md"
-    let contributor = "--contributor=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
+    let contributor = "--contributor=did:rhours:21meXxGB8Gk8KcGrDtrnoUUL5UrL"
     let amount = sprintf "--amount=%f" 100M
     let rate = sprintf "--rate=%f" 0.25M
     let maxamt = sprintf "--max=%f" 1000M
-    let bondid = "--id=did:rhours:TN6rhGcXTaFqcaGAXsQ5BqaaFTn"
-    let signatoryContributor = sprintf "--signatory=did:rhours:2KN8YfD5Zh9rmebfuHbH9HUVPSy4"
-    let signatoryCompany = sprintf "--signatory=did:rhours:4Kdk9wzaCMo1hqG7Xb1HqvwzKxFy"
+    let bondid = "--id=did:rhours:iGyFKp5zwo84NX4jXzJc1fyMnDh"
+    let signatoryContributor = sprintf "--signatory=did:rhours:21meXxGB8Gk8KcGrDtrnoUUL5UrL"
+    let signatoryCompany = sprintf "--signatory=did:rhours:BV8hFzyprAj1M5ex327pWMJE9N1"
     let paymentAmount = sprintf "--amount=%f" 20M
     
     let testCompanyInitializeArgs = [| "company"; "initialize"; root; |]
@@ -262,7 +280,7 @@ let main argv =
     let testBondPaymentArgs = [| "bond"; "payment"; root; bondid; paymentAmount; |]
     let testBondVerifyArgs = [| "bond"; "verify"; root; bondid; |]
 
-    let mode = 7
+    let mode = 0
 
     let testArgs = 
         match mode with
