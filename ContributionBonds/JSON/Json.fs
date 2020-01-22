@@ -98,9 +98,13 @@ let MakePEMString (data: byte array) (label: string) =
 
     sb.AppendLine(sprintf "-----BEGIN %s-----" label) |> ignore
 
-    for i = 0 to (dataBase64.Length % 64) do
-        sb.AppendLine(dataBase64.Substring(i * 64, min 64 (dataBase64.Length - i))) |> ignore
-    
+    let rows = (dataBase64.Length / 64) - 1
+    for i = 0 to rows do
+        sb.AppendLine(dataBase64.Substring(i * 64, 64)) |> ignore
+    let mod64 = dataBase64.Length % 64
+    if mod64 > 0 then
+        sb.AppendLine(dataBase64.Substring((rows + 1) * 64, mod64)) |> ignore
+
     sb.AppendLine(sprintf "-----END %s-----" label)
         .ToString()
 

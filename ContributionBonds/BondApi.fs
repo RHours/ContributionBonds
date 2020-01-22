@@ -32,25 +32,23 @@ let private TryParseRhoursDIDFileName (filename: string) =
     else
         None
 
-let private CreateRhoursDID () = 
-    use rng = RandomNumberGenerator.Create()
-    let idBytes = Array.create<byte> 16 0uy
-    rng.GetBytes(idBytes)
+let private CreateRhoursDID (idBytes: byte array) = 
     let didMethodSpecifcId = ToBase58WithCheckSum idBytes
     sprintf "did:rhours:%s" didMethodSpecifcId
     
 let private CreateIdentityDID (path: System.IO.DirectoryInfo) = 
-    // generate a random id of 32 bytes
+    // generate a random id of 16 bytes
     // generate a key pair
     // create a PEM string with the private key
     // create a DID string with the public key
     // create a DID document
 
-    let didString = CreateRhoursDID()
-
     use rsa = new RSACng()
     let keyPrivate = rsa.Key.Export(CngKeyBlobFormat.GenericPrivateBlob)
     let keyPublic = rsa.Key.Export(CngKeyBlobFormat.GenericPublicBlob)
+    
+    let _, idBytes = keyPublic |> Array.splitAt (keyPublic.Length - 16)
+    let didString = CreateRhoursDID(idBytes)
 
     // TO DO: Look into .net secure strings
     let privatePEM = MakePEMString keyPrivate "PRIVATE KEY"
@@ -259,7 +257,10 @@ let CreateBond  (path: System.IO.DirectoryInfo)
 }
     *)
 
-    let bondDidString = CreateRhoursDID()
+    use rng = RandomNumberGenerator.Create()
+    let idBytes = Array.create<byte> 16 0uy
+    rng.GetBytes(idBytes)
+    let bondDidString = CreateRhoursDID(idBytes)
     let createdString = DateTimeToString (DateTime.UtcNow)
 
     let termsBytes = 
