@@ -257,7 +257,7 @@ let UICommands =
 
 [<EntryPoint>]
 let main argv = 
-    Internal.Utilities.Text.Parsing.Flags.debug <- false
+    //Internal.Utilities.Text.Parsing.Flags.debug <- false
 
     let dataDir = System.IO.DirectoryInfo("..\\..\\..\\Data")
 
